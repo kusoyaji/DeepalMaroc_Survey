@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { initializeDatabase, saveSurveyResponse, getPhoneByFlowToken } = require('./db/postgres');
 const { sendWhatsAppMessage, formatSurveyForWhatsApp } = require('./whatsapp-sender');
-const { getContactFromChatwoot } = require('./chatwoot-helper');
+const { getContactFromChatwoot, getPhoneByFlowTokenFromChatwoot } = require('./chatwoot-helper');
 
 let dbInitialized = false;
 
@@ -133,16 +133,39 @@ module.exports = async (req, res) => {
         console.log('📊 Survey Data:', JSON.stringify(data, null, 2));
         console.log('========================================');
         
-        // Get phone number - PRIORITY ORDER:
-        // 1. Database lookup (from webhook capture) - MOST RELIABLE
-        // 2. Extract from flow_token - FALLBACK
-        // 3. From data payload - LAST RESORT
-        let phoneNumber = data.phone_number || null;
-        let phoneSource = 'data_payload';
+        // Get phone number - NEW PRIORITY ORDER (CHATWOOT-ONLY):
+        // 1. Chatwoot conversation search (by flow_token) - PRIMARY, NO ZOHO DEPENDENCY
+        // 2. Database lookup - FALLBACK
+        // 3. Extract from flow_token pattern - LEGACY FALLBACK
+        // 4. From data payload - LAST RESORT
+        let phoneNumber = null;
+        let contactName = null;
+        let phoneSource = null;
         
-        // METHOD 1: Database lookup (phone captured when user opened Flow)
+        // METHOD 1: Search Chatwoot for conversation containing this flow_token
+        // This works regardless of flow_token format - NO DEPENDENCY ON ZOHO
+        if (flow_token) {
+          console.log('🔍 PRIMARY METHOD: Searching Chatwoot conversations for flow_token...');
+          try {
+            const chatwootResult = await getPhoneByFlowTokenFromChatwoot(flow_token);
+            if (chatwootResult && chatwootResult.phone) {
+              phoneNumber = chatwootResult.phone;
+              contactName = chatwootResult.name || null;
+              phoneSource = 'chatwoot_conversation_search';
+              console.log('✅ CHATWOOT SUCCESS: Phone:', phoneNumber, '| Name:', contactName);
+              console.log('📊 Conversation ID:', chatwootResult.conversationId);
+            } else {
+              console.log('⚠️ Chatwoot conversation search returned no results');
+            }
+          } catch (chatwootError) {
+            console.error('⚠️ Chatwoot conversation search error:', chatwootError.message);
+            // Continue to fallback methods
+          }
+        }
+        
+        // METHOD 2: Database lookup (phone captured when user opened Flow)
         if (!phoneNumber && flow_token) {
-          console.log('🔍 Checking database for phone number...');
+          console.log('🔍 FALLBACK: Checking database for phone number...');
           phoneNumber = await getPhoneByFlowToken(flow_token);
           if (phoneNumber) {
             phoneSource = 'database_lookup';
@@ -150,9 +173,9 @@ module.exports = async (req, res) => {
           }
         }
         
-        // METHOD 2: Extract from flow_token pattern
+        // METHOD 3: Extract from flow_token pattern (LEGACY - depends on Zoho format)
         if (!phoneNumber && flow_token) {
-          console.log('🔍 Attempting flow_token extraction...');
+          console.log('🔍 LEGACY FALLBACK: Attempting flow_token pattern extraction...');
           // deepal-212610059159-uuid format
           if (flow_token.startsWith('deepal-')) {
             const parts = flow_token.split('-');
@@ -173,13 +196,19 @@ module.exports = async (req, res) => {
           }
         }
         
+        // METHOD 4: From data payload (last resort)
+        if (!phoneNumber && data.phone_number) {
+          phoneNumber = data.phone_number;
+          phoneSource = 'data_payload';
+          console.log('📞 Phone from DATA PAYLOAD:', phoneNumber);
+        }
+        
         console.log('📞 Final phone number:', phoneNumber);
         console.log('📍 Phone source:', phoneSource);
         
-        // Fetch contact name from Chatwoot
-        let contactName = null;
-        if (phoneNumber) {
-          console.log('👤 Fetching contact name from Chatwoot...');
+        // Fetch contact name from Chatwoot if not already obtained
+        if (phoneNumber && !contactName) {
+          console.log('👤 Fetching contact name from Chatwoot (by phone)...');
           try {
             const chatwootContact = await getContactFromChatwoot(phoneNumber);
             if (chatwootContact && chatwootContact.name) {

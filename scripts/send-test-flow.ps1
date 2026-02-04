@@ -2,7 +2,7 @@
 # VARIABLES
 $accessToken = "EAAWqkyU5JYYBQjXOfEnzw1tO3APGrZAlkG8AaPFZArGheRPK0FpAqiCcdLRyjsBSkAU9jkERZB51gfXHFo9qH3ZA5X6DYlLhU3yIgbgYCWtDsvGnGOA6PR5QyliJEnbSgaidpEE1c3nVwGCioXzTcDLPFQdqlCf8aUNqmc1gc8KTeUM0XTYUpVRfzXlulwZDZD"
 $phoneNumberId = "875940088939317"
-$recipientPhone = "+212610015189"
+$recipientPhone = "+212610059159"
 
 # Get Flow ID from file or prompt
 if (Test-Path "flow-id.txt") {

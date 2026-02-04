@@ -1,5 +1,5 @@
 // Chatwoot Webhook - Captures Flow submissions with phone numbers
-const { initializeDatabase, updatePhoneNumberByFlowToken } = require('./db/postgres');
+const { initializeDatabase, updatePhoneNumberByFlowToken, storeFlowTokenMapping } = require('./db/postgres');
 const { sendSurveyToChatwoot } = require('./chatwoot-helper');
 
 let dbInitialized = false;
@@ -44,6 +44,7 @@ function parseFlowSubmission(messageContent) {
 
 module.exports = async (req, res) => {
   console.log('Chatwoot webhook triggered');
+  console.log('📦 Payload:', JSON.stringify(req.body, null, 2));
   
   try {
     if (req.method !== 'POST') {
@@ -61,12 +62,35 @@ module.exports = async (req, res) => {
     const messageType = payload.message_type;
     const content = payload.content;
     
+    console.log('📊 Event:', event, '| Type:', messageType);
+    console.log('📱 Sender:', JSON.stringify(payload.sender || {}, null, 2));
+    console.log('💬 Content:', content?.substring(0, 100));
+    
     if (event === 'message_created' && messageType === 'incoming' && content && content.includes('Form Submission')) {
       console.log('Flow submission detected');
       
       const phoneNumber = payload.sender?.phone_number || payload.sender?.identifier || 'unknown';
-      const formData = parseFlowSubmission(content);
+      const whatsappName = payload.sender?.name || null;
       const flowToken = payload.content_attributes?.form_data?.flow_token;
+      
+      console.log('📞 Flow submission - Phone:', phoneNumber, '| Name:', whatsappName, '| Token:', flowToken);
+      
+      // CRITICAL: Store flow_token → phone + name mapping IMMEDIATELY
+      // This happens BEFORE the flow endpoint processes the submission
+      if (flowToken && phoneNumber && phoneNumber !== 'unknown') {
+        try {
+          await storeFlowTokenMapping(flowToken, phoneNumber, whatsappName);
+          console.log('✅ Stored flow_token mapping in database');
+          console.log('   → Token:', flowToken);
+          console.log('   → Phone:', phoneNumber);
+          console.log('   → Name:', whatsappName || '(no name)');
+        } catch (dbError) {
+          console.error('❌ Failed to store flow_token mapping:', dbError.message);
+        }
+      }
+      
+      // Legacy: Try to parse form data from message content (usually empty)
+      const formData = parseFlowSubmission(content);
       
       if (Object.keys(formData).length > 0 && flowToken) {
         const updated = await updatePhoneNumberByFlowToken(flowToken, phoneNumber);

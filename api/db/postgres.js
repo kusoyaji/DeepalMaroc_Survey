@@ -6,7 +6,7 @@ async function initializeDatabase() {
   await sql`
     CREATE TABLE IF NOT EXISTS survey_responses (
       id SERIAL PRIMARY KEY,
-      flow_token TEXT UNIQUE NOT NULL,
+      flow_token TEXT NOT NULL,
       phone_number TEXT,
       whatsapp_name TEXT,
       
@@ -37,6 +37,12 @@ async function initializeDatabase() {
       response_day_of_week TEXT DEFAULT TO_CHAR(CURRENT_DATE, 'Day'),
       response_month TEXT DEFAULT TO_CHAR(CURRENT_DATE, 'Month')
     )
+  `;
+  
+  // DROP the UNIQUE constraint on flow_token (allow multiple submissions with same token)
+  await sql`
+    ALTER TABLE survey_responses 
+    DROP CONSTRAINT IF EXISTS survey_responses_flow_token_key
   `;
   
   // Add phone_number column if it doesn't exist (migration)
@@ -130,6 +136,46 @@ async function saveSurveyResponse(flowToken, data, whatsappName = null) {
   if (satisfaction_score >= 0.75) sentiment = 'positive';
   else if (satisfaction_score < 0.5) sentiment = 'negative';
   
+  // Try to UPDATE existing row first (created by Chatwoot webhook)
+  // Use subquery to find the most recent row with this flow_token that has phone but no survey data
+  const updateResult = await sql`
+    UPDATE survey_responses
+    SET 
+      q1_rating = ${data.q1_rating || null},
+      q1_comment = ${data.q1_comment || null},
+      q2_rating = ${data.q2_rating || null},
+      q2_comment = ${data.q2_comment || null},
+      q3_followup = ${data.q3_followup || null},
+      q4_rating = ${data.q4_rating || null},
+      q4_comment = ${data.q4_comment || null},
+      q5_rating = ${data.q5_rating || null},
+      q5_comment = ${data.q5_comment || null},
+      final_comments = ${data.final_comments || null},
+      satisfaction_score = ${satisfaction_score},
+      is_promoter = ${is_promoter},
+      is_detractor = ${is_detractor},
+      needs_followup = ${needs_followup},
+      sentiment = ${sentiment},
+      updated_at = NOW()
+    WHERE id = (
+      SELECT id 
+      FROM survey_responses 
+      WHERE flow_token = ${flowToken}
+        AND q1_rating IS NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    )
+    RETURNING id
+  `;
+  
+  // If UPDATE succeeded, return that row
+  if (updateResult.length > 0) {
+    console.log('✅ Updated existing row with survey data, ID:', updateResult[0].id);
+    return updateResult[0];
+  }
+  
+  // Otherwise INSERT new row (fallback)
+  console.log('📝 Creating new row (no existing row to update)');
   const result = await sql`
     INSERT INTO survey_responses (
       flow_token,
@@ -170,26 +216,6 @@ async function saveSurveyResponse(flowToken, data, whatsappName = null) {
       ${needs_followup},
       ${sentiment}
     )
-    ON CONFLICT (flow_token) 
-    DO UPDATE SET
-      phone_number = EXCLUDED.phone_number,
-      whatsapp_name = EXCLUDED.whatsapp_name,
-      q1_rating = EXCLUDED.q1_rating,
-      q1_comment = EXCLUDED.q1_comment,
-      q2_rating = EXCLUDED.q2_rating,
-      q2_comment = EXCLUDED.q2_comment,
-      q3_followup = EXCLUDED.q3_followup,
-      q4_rating = EXCLUDED.q4_rating,
-      q4_comment = EXCLUDED.q4_comment,
-      q5_rating = EXCLUDED.q5_rating,
-      q5_comment = EXCLUDED.q5_comment,
-      final_comments = EXCLUDED.final_comments,
-      satisfaction_score = EXCLUDED.satisfaction_score,
-      is_promoter = EXCLUDED.is_promoter,
-      is_detractor = EXCLUDED.is_detractor,
-      needs_followup = EXCLUDED.needs_followup,
-      sentiment = EXCLUDED.sentiment,
-      updated_at = NOW()
     RETURNING id
   `;
   
@@ -221,7 +247,7 @@ async function storeFlowTokenMapping(flowToken, phoneNumber, whatsappName = null
   const sql = neon(process.env.DATABASE_URL);
   
   try {
-    // Insert or update mapping (create empty record that will be filled later)
+    // Insert new record for EACH flow submission (no conflict check)
     await sql`
       INSERT INTO survey_responses (
         flow_token,
@@ -232,11 +258,6 @@ async function storeFlowTokenMapping(flowToken, phoneNumber, whatsappName = null
         ${phoneNumber},
         ${whatsappName}
       )
-      ON CONFLICT (flow_token) 
-      DO UPDATE SET
-        phone_number = EXCLUDED.phone_number,
-        whatsapp_name = EXCLUDED.whatsapp_name,
-        updated_at = NOW()
     `;
     
     console.log('✅ Flow token mapping stored:', {
@@ -264,6 +285,7 @@ async function getPhoneByFlowToken(flowToken) {
       FROM survey_responses 
       WHERE flow_token = ${flowToken}
       AND phone_number IS NOT NULL
+      ORDER BY created_at DESC
       LIMIT 1
     `;
     
