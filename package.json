@@ -1,0 +1,19 @@
+{
+  "name": "deepal-maroc-whatsapp-webhook",
+  "version": "1.0.0",
+  "description": "Deepal Janvier Customer Satisfaction Survey - WhatsApp Flow System",
+  "main": "api/flow.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["whatsapp", "flow", "survey", "deepal"],
+  "author": "",
+  "license": "MIT"
+}

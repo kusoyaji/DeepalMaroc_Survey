@@ -1,0 +1,758 @@
+{
+  "version": "7.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "QUESTION_ONE": [
+      "QUESTION_ONE_POURQUOI",
+      "QUESTION_TWO"
+    ],
+    "QUESTION_ONE_POURQUOI": [
+      "QUESTION_TWO"
+    ],
+    "QUESTION_TWO": [
+      "QUESTION_THREE"
+    ],
+    "QUESTION_THREE": [
+      "QUESTION_THREE_POURQUOI",
+      "QUESTION_FOUR"
+    ],
+    "QUESTION_THREE_POURQUOI": [
+      "QUESTION_FOUR"
+    ],
+    "QUESTION_FOUR": [
+      "QUESTION_FIVE"
+    ],
+    "QUESTION_FIVE": [
+      "QUESTION_SIX"
+    ],
+    "QUESTION_SIX": [
+      "SUCCESS_SCREEN"
+    ]
+  },
+  "screens": [
+    {
+      "id": "QUESTION_ONE",
+      "title": "Accueil et Courtoisie",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "QUESTION_ONE_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Question 1/6"
+              },
+              {
+                "type": "TextBody",
+                "text": "Comment avez-vous trouvé l'accueil et la courtoisie de notre équipe lors de votre passage ?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Évaluation",
+                "name": "accueil_courtoisie",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "tres_satisfaisant",
+                    "title": "Très satisfaisant"
+                  },
+                  {
+                    "id": "satisfaisant",
+                    "title": "Satisfaisant"
+                  },
+                  {
+                    "id": "peu_satisfaisant",
+                    "title": "Peu satisfaisant"
+                  },
+                  {
+                    "id": "pas_du_tout_satisfaisant",
+                    "title": "Pas du tout satisfaisant"
+                  }
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.accueil_courtoisie} == 'peu_satisfaisant'",
+                "then": [
+                  {
+                    "type": "Footer",
+                    "label": "Continuer",
+                    "on-click-action": {
+                      "name": "navigate",
+                      "next": {
+                        "type": "screen",
+                        "name": "QUESTION_ONE_POURQUOI"
+                      },
+                      "payload": {
+                        "accueil_courtoisie": "${form.accueil_courtoisie}"
+                      }
+                    }
+                  }
+                ],
+                "else": [
+                  {
+                    "type": "If",
+                    "condition": "${form.accueil_courtoisie} == 'pas_du_tout_satisfaisant'",
+                    "then": [
+                      {
+                        "type": "Footer",
+                        "label": "Continuer",
+                        "on-click-action": {
+                          "name": "navigate",
+                          "next": {
+                            "type": "screen",
+                            "name": "QUESTION_ONE_POURQUOI"
+                          },
+                          "payload": {
+                            "accueil_courtoisie": "${form.accueil_courtoisie}"
+                          }
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "type": "Footer",
+                        "label": "Continuer",
+                        "on-click-action": {
+                          "name": "navigate",
+                          "next": {
+                            "type": "screen",
+                            "name": "QUESTION_TWO"
+                          },
+                          "payload": {
+                            "accueil_courtoisie": "${form.accueil_courtoisie}",
+                            "accueil_courtoisie_raison": ""
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_ONE_POURQUOI",
+      "title": "Précisions",
+      "data": {
+        "accueil_courtoisie": {
+          "type": "string",
+          "__example__": "peu_satisfaisant"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "pourquoi_1_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Pouvez-vous nous expliquer pourquoi ?"
+              },
+              {
+                "type": "TextArea",
+                "label": "Votre réponse",
+                "name": "accueil_courtoisie_raison",
+                "required": true,
+                "helper-text": "Merci de préciser ce qui n'a pas été satisfaisant"
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "QUESTION_TWO"
+                  },
+                  "payload": {
+                    "accueil_courtoisie": "${data.accueil_courtoisie}",
+                    "accueil_courtoisie_raison": "${form.accueil_courtoisie_raison}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_TWO",
+      "title": "Respect des Délais",
+      "data": {
+        "accueil_courtoisie": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "accueil_courtoisie_raison": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "QUESTION_TWO_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Question 2/6"
+              },
+              {
+                "type": "TextBody",
+                "text": "L'intervention a-t-elle été réalisée dans les délais annoncés ?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Réponse",
+                "name": "delais_respectes",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "oui",
+                    "title": "Oui"
+                  },
+                  {
+                    "id": "non",
+                    "title": "Non"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "QUESTION_THREE"
+                  },
+                  "payload": {
+                    "accueil_courtoisie": "${data.accueil_courtoisie}",
+                    "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                    "delais_respectes": "${form.delais_respectes}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_THREE",
+      "title": "Qualité du Service",
+      "data": {
+        "accueil_courtoisie": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "accueil_courtoisie_raison": {
+          "type": "string",
+          "__example__": ""
+        },
+        "delais_respectes": {
+          "type": "string",
+          "__example__": "oui"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "QUESTION_THREE_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Question 3/6"
+              },
+              {
+                "type": "TextBody",
+                "text": "Globalement, comment évaluez-vous la qualité du service rendu sur votre véhicule ?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Évaluation",
+                "name": "qualite_service",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "tres_satisfaisant",
+                    "title": "⭐⭐⭐⭐ Très satisfaisant"
+                  },
+                  {
+                    "id": "satisfaisant",
+                    "title": "⭐⭐⭐ Satisfaisant"
+                  },
+                  {
+                    "id": "peu_satisfaisant",
+                    "title": "⭐⭐ Peu satisfaisant"
+                  },
+                  {
+                    "id": "pas_du_tout_satisfaisant",
+                    "title": "⭐ Pas du tout satisfaisant"
+                  }
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.qualite_service} == 'peu_satisfaisant'",
+                "then": [
+                  {
+                    "type": "Footer",
+                    "label": "Continuer",
+                    "on-click-action": {
+                      "name": "navigate",
+                      "next": {
+                        "type": "screen",
+                        "name": "QUESTION_THREE_POURQUOI"
+                      },
+                      "payload": {
+                        "accueil_courtoisie": "${data.accueil_courtoisie}",
+                        "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                        "delais_respectes": "${data.delais_respectes}",
+                        "qualite_service": "${form.qualite_service}"
+                      }
+                    }
+                  }
+                ],
+                "else": [
+                  {
+                    "type": "If",
+                    "condition": "${form.qualite_service} == 'pas_du_tout_satisfaisant'",
+                    "then": [
+                      {
+                        "type": "Footer",
+                        "label": "Continuer",
+                        "on-click-action": {
+                          "name": "navigate",
+                          "next": {
+                            "type": "screen",
+                            "name": "QUESTION_THREE_POURQUOI"
+                          },
+                          "payload": {
+                            "accueil_courtoisie": "${data.accueil_courtoisie}",
+                            "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                            "delais_respectes": "${data.delais_respectes}",
+                            "qualite_service": "${form.qualite_service}"
+                          }
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "type": "Footer",
+                        "label": "Continuer",
+                        "on-click-action": {
+                          "name": "navigate",
+                          "next": {
+                            "type": "screen",
+                            "name": "QUESTION_FOUR"
+                          },
+                          "payload": {
+                            "accueil_courtoisie": "${data.accueil_courtoisie}",
+                            "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                            "delais_respectes": "${data.delais_respectes}",
+                            "qualite_service": "${form.qualite_service}",
+                            "qualite_service_raison": ""
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_THREE_POURQUOI",
+      "title": "Précisions",
+      "data": {
+        "accueil_courtoisie": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "accueil_courtoisie_raison": {
+          "type": "string",
+          "__example__": ""
+        },
+        "delais_respectes": {
+          "type": "string",
+          "__example__": "oui"
+        },
+        "qualite_service": {
+          "type": "string",
+          "__example__": "peu_satisfaisant"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "pourquoi_3_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Pouvez-vous nous expliquer pourquoi ?"
+              },
+              {
+                "type": "TextArea",
+                "label": "Votre réponse",
+                "name": "qualite_service_raison",
+                "required": true,
+                "helper-text": "Merci de préciser ce qui n'a pas été satisfaisant"
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "QUESTION_FOUR"
+                  },
+                  "payload": {
+                    "accueil_courtoisie": "${data.accueil_courtoisie}",
+                    "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                    "delais_respectes": "${data.delais_respectes}",
+                    "qualite_service": "${data.qualite_service}",
+                    "qualite_service_raison": "${form.qualite_service_raison}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FOUR",
+      "title": "Recommandation",
+      "data": {
+        "accueil_courtoisie": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "accueil_courtoisie_raison": {
+          "type": "string",
+          "__example__": ""
+        },
+        "delais_respectes": {
+          "type": "string",
+          "__example__": "oui"
+        },
+        "qualite_service": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "qualite_service_raison": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "QUESTION_FOUR_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Question 4/6"
+              },
+              {
+                "type": "TextBody",
+                "text": "Sur une échelle de 10 à 1, recommanderiez-vous notre service après-vente à votre entourage ?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Note de recommandation",
+                "name": "note_recommandation",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "10",
+                    "title": "10 - Absolument"
+                  },
+                  {
+                    "id": "9",
+                    "title": "9"
+                  },
+                  {
+                    "id": "8",
+                    "title": "8"
+                  },
+                  {
+                    "id": "7",
+                    "title": "7"
+                  },
+                  {
+                    "id": "6",
+                    "title": "6"
+                  },
+                  {
+                    "id": "5",
+                    "title": "5"
+                  },
+                  {
+                    "id": "4",
+                    "title": "4"
+                  },
+                  {
+                    "id": "3",
+                    "title": "3"
+                  },
+                  {
+                    "id": "2",
+                    "title": "2"
+                  },
+                  {
+                    "id": "1",
+                    "title": "1 - Pas du tout"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "QUESTION_FIVE"
+                  },
+                  "payload": {
+                    "accueil_courtoisie": "${data.accueil_courtoisie}",
+                    "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                    "delais_respectes": "${data.delais_respectes}",
+                    "qualite_service": "${data.qualite_service}",
+                    "qualite_service_raison": "${data.qualite_service_raison}",
+                    "note_recommandation": "${form.note_recommandation}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FIVE",
+      "title": "Remarques et Suggestions",
+      "data": {
+        "accueil_courtoisie": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "accueil_courtoisie_raison": {
+          "type": "string",
+          "__example__": ""
+        },
+        "delais_respectes": {
+          "type": "string",
+          "__example__": "oui"
+        },
+        "qualite_service": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "qualite_service_raison": {
+          "type": "string",
+          "__example__": ""
+        },
+        "note_recommandation": {
+          "type": "string",
+          "__example__": "8"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "QUESTION_FIVE_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Question 5/6"
+              },
+              {
+                "type": "TextBody",
+                "text": "Avez-vous une remarque ou une suggestion à partager pour améliorer votre expérience ?"
+              },
+              {
+                "type": "TextArea",
+                "label": "Vos remarques",
+                "name": "remarques",
+                "required": false,
+                "helper-text": "Partagez vos idées pour nous aider à mieux vous servir"
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "QUESTION_SIX"
+                  },
+                  "payload": {
+                    "accueil_courtoisie": "${data.accueil_courtoisie}",
+                    "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                    "delais_respectes": "${data.delais_respectes}",
+                    "qualite_service": "${data.qualite_service}",
+                    "qualite_service_raison": "${data.qualite_service_raison}",
+                    "note_recommandation": "${data.note_recommandation}",
+                    "remarques": "${form.remarques}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_SIX",
+      "title": "Recontact",
+      "data": {
+        "accueil_courtoisie": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "accueil_courtoisie_raison": {
+          "type": "string",
+          "__example__": ""
+        },
+        "delais_respectes": {
+          "type": "string",
+          "__example__": "oui"
+        },
+        "qualite_service": {
+          "type": "string",
+          "__example__": "satisfaisant"
+        },
+        "qualite_service_raison": {
+          "type": "string",
+          "__example__": ""
+        },
+        "note_recommandation": {
+          "type": "string",
+          "__example__": "8"
+        },
+        "remarques": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "QUESTION_SIX_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Question 6/6"
+              },
+              {
+                "type": "TextBody",
+                "text": "Souhaitez-vous être recontacté par notre équipe ?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Recontact",
+                "name": "recontact",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "oui",
+                    "title": "Oui"
+                  },
+                  {
+                    "id": "non",
+                    "title": "Non"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Valider",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "accueil_courtoisie": "${data.accueil_courtoisie}",
+                    "accueil_courtoisie_raison": "${data.accueil_courtoisie_raison}",
+                    "delais_respectes": "${data.delais_respectes}",
+                    "qualite_service": "${data.qualite_service}",
+                    "qualite_service_raison": "${data.qualite_service_raison}",
+                    "note_recommandation": "${data.note_recommandation}",
+                    "remarques": "${data.remarques}",
+                    "recontact": "${form.recontact}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS_SCREEN",
+      "title": "Confirmation",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "confirmation_message": {
+          "type": "string",
+          "__example__": "Merci pour votre participation !"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "success_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "✅ Questionnaire Complété"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.confirmation_message}"
+              },
+              {
+                "type": "Footer",
+                "label": "Terminer",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,10 @@
+node_modules/
+.env
+.vercel/
+*.log
+private-key.pem
+public-key.pem
+.DS_Store
+*.bak
+.vscode/
+.vercel
