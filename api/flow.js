@@ -1,5 +1,7 @@
 const crypto = require('crypto');
-const { initializeDatabase, saveSurveyResponse } = require('./db/postgres');
+const { initializeDatabase, saveSurveyResponse, getPhoneByFlowToken } = require('./db/postgres');
+const { sendWhatsAppMessage, formatSurveyForWhatsApp } = require('./whatsapp-sender');
+const { getContactFromChatwoot } = require('./chatwoot-helper');
 
 let dbInitialized = false;
 
@@ -125,15 +127,105 @@ module.exports = async (req, res) => {
       }
 
       if (action === 'data_exchange') {
-        console.log('Data exchange - Deepal Survey data received');
-        console.log('Survey data:', JSON.stringify(data, null, 2));
+        console.log('========================================');
+        console.log('✅ DATA EXCHANGE - DEEPAL SURVEY SUBMITTED');
+        console.log('🎫 Flow Token:', flow_token);
+        console.log('📊 Survey Data:', JSON.stringify(data, null, 2));
+        console.log('========================================');
         
-        // Save to database
+        // Get phone number - PRIORITY ORDER:
+        // 1. Database lookup (from webhook capture) - MOST RELIABLE
+        // 2. Extract from flow_token - FALLBACK
+        // 3. From data payload - LAST RESORT
+        let phoneNumber = data.phone_number || null;
+        let phoneSource = 'data_payload';
+        
+        // METHOD 1: Database lookup (phone captured when user opened Flow)
+        if (!phoneNumber && flow_token) {
+          console.log('🔍 Checking database for phone number...');
+          phoneNumber = await getPhoneByFlowToken(flow_token);
+          if (phoneNumber) {
+            phoneSource = 'database_lookup';
+            console.log('📞 Phone from DATABASE:', phoneNumber);
+          }
+        }
+        
+        // METHOD 2: Extract from flow_token pattern
+        if (!phoneNumber && flow_token) {
+          console.log('🔍 Attempting flow_token extraction...');
+          // deepal-212610059159-uuid format
+          if (flow_token.startsWith('deepal-')) {
+            const parts = flow_token.split('-');
+            if (parts.length >= 3 && parts[1]) {
+              phoneNumber = parts[1].startsWith('+') ? parts[1] : '+' + parts[1];
+              phoneSource = 'flow_token_pattern';
+              console.log('📞 Extracted from flow_token (pattern):', phoneNumber);
+            }
+          }
+          // Regex fallback
+          else {
+            const phoneMatch = flow_token.match(/(\+?\d{10,15})/);
+            if (phoneMatch) {
+              phoneNumber = phoneMatch[1].startsWith('+') ? phoneMatch[1] : '+' + phoneMatch[1];
+              phoneSource = 'flow_token_regex';
+              console.log('📞 Extracted from flow_token (regex):', phoneNumber);
+            }
+          }
+        }
+        
+        console.log('📞 Final phone number:', phoneNumber);
+        console.log('📍 Phone source:', phoneSource);
+        
+        // Fetch contact name from Chatwoot
+        let contactName = null;
+        if (phoneNumber) {
+          console.log('👤 Fetching contact name from Chatwoot...');
+          try {
+            const chatwootContact = await getContactFromChatwoot(phoneNumber);
+            if (chatwootContact && chatwootContact.name) {
+              contactName = chatwootContact.name;
+              console.log('✅ Got name from Chatwoot:', contactName);
+            } else {
+              console.log('⚠️ No name found in Chatwoot for this phone');
+            }
+          } catch (chatwootError) {
+            console.error('⚠️ Chatwoot lookup error:', chatwootError.message);
+            // Non-blocking - continue without name
+          }
+        }
+        
+        // CRITICAL VALIDATION: Alert if phone number is missing
+        if (!phoneNumber) {
+          console.error('🚨🚨🚨 CRITICAL DATA INTEGRITY ALERT 🚨🚨🚨');
+          console.error('❌ NO PHONE NUMBER FOUND!');
+          console.error('Flow Token:', flow_token);
+          console.error('Tried: database lookup, flow_token extraction, data payload');
+          console.error('⚠️  This response will be saved WITHOUT phone number!');
+          console.error('⚠️  It will be updated by Chatwoot webhook later');
+          console.error('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        } else {
+          console.log(`✅ Phone number validated: ${phoneNumber} (source: ${phoneSource})`);
+        }
+        
+        // Save to database with phone and name
         try {
-          const savedResponse = await saveSurveyResponse(flow_token, data);
-          console.log('Database ID:', savedResponse.id);
+          const savedResponse = await saveSurveyResponse(flow_token, data, contactName);
+          console.log('💾 Saved to database - ID:', savedResponse.id);
+          console.log('📝 Saved data:', { phone: phoneNumber, name: contactName || '(no name)' });
+          
+          // Send formatted WhatsApp message (will appear in Chatwoot)
+          if (phoneNumber) {
+            try {
+              const formattedMessage = formatSurveyForWhatsApp(data);
+              await sendWhatsAppMessage(phoneNumber, formattedMessage);
+              console.log('✅ Survey summary sent via WhatsApp (will appear in Chatwoot)');
+            } catch (whatsappError) {
+              console.error('⚠️ WhatsApp send error:', whatsappError.message);
+              // Non-blocking - continue even if WhatsApp message fails
+            }
+          }
         } catch (dbError) {
-          console.error('Database save error:', dbError);
+          console.error('❌ Database save error:', dbError);
           // Continue anyway to send success response
         }
 

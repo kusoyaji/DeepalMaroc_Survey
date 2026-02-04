@@ -2,6 +2,10 @@
   "rewrites": [
     { "source": "/api/flow", "destination": "/api/flow.js" },
     { "source": "/api/responses", "destination": "/api/responses.js" },
-    { "source": "/api/export", "destination": "/api/export.js" }
+    { "source": "/api/export", "destination": "/api/export.js" },
+    { "source": "/api/webhook", "destination": "/api/webhook.js" },
+    { "source": "/api/chatwoot-webhook", "destination": "/api/chatwoot-webhook.js" },
+    { "source": "/api/chatwoot-test", "destination": "/api/chatwoot-test.js" },
+    { "source": "/api/integrity", "destination": "/api/integrity.js" }
   ]
 }

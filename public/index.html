@@ -240,6 +240,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>Nom</th>
                             <th>Téléphone</th>
                             <th>Date</th>
                             <th>Accueil</th>
@@ -253,6 +254,7 @@
                     <tbody>
                         ${data.map(r => `
                             <tr>
+                                <td><strong>${r.whatsapp_name || '-'}</strong></td>
                                 <td><strong>${r.phone_number || 'N/A'}</strong></td>
                                 <td>${new Date(r.created_at).toLocaleString('fr-FR')}</td>
                                 <td><span class="rating-badge ${getRatingClass(r.q1_rating)}">${formatRating(r.q1_rating)}</span></td>
