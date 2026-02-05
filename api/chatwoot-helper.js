@@ -228,7 +228,8 @@ async function getPhoneByFlowTokenFromChatwoot(flowToken) {
       // Get phone number from first matching conversation
       const conversation = conversations[0];
       const phoneNumber = conversation.meta?.sender?.phone_number || 
-                         conversation.meta?.sender?.identifier;
+                         conversation.meta?.sender?.identifier ||
+                         conversation.meta?.sender?.phone;
       const customerName = conversation.meta?.sender?.name || null;
 
       if (phoneNumber) {
@@ -239,11 +240,13 @@ async function getPhoneByFlowTokenFromChatwoot(flowToken) {
         });
         
         return {
-          phone_number: phoneNumber,
-          customer_name: customerName
+          phone: phoneNumber,
+          name: customerName,
+          conversationId: conversation.id
         };
       } else {
         console.log('⚠️ Conversation found but no phone number in metadata');
+        console.log('📋 Conversation metadata:', JSON.stringify(conversation.meta?.sender, null, 2));
       }
     }
 
@@ -266,9 +269,14 @@ async function getPhoneByFlowTokenFromChatwoot(flowToken) {
 /**
  * Search recent conversations and their messages for flow_token
  * Fallback method if direct conversation search doesn't work
+ * 
+ * Special handling for "unused" token: finds the most recent conversation
+ * that received the survey template (within last 60 seconds)
  */
 async function searchRecentConversationsForFlowToken(flowToken) {
   try {
+    const isGenericToken = ['unused', 'test', 'demo'].includes(flowToken.toLowerCase());
+    
     const url = `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}/conversations`;
     const params = new URLSearchParams({
       status: 'all',
@@ -290,9 +298,69 @@ async function searchRecentConversationsForFlowToken(flowToken) {
     const data = await response.json();
     const conversations = data.payload || [];
 
-    // Check last 20 conversations
+    // For generic tokens, find the most recent template message
+    if (isGenericToken) {
+      console.log('🔍 Generic token detected - searching for most recent survey template...');
+      
+      const now = Date.now();
+      const sixtySecondsAgo = now - 60000; // 60 seconds
+      
+      for (const conv of conversations.slice(0, 30)) {
+        const messagesUrl = `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${conv.id}/messages`;
+        
+        const msgResponse = await fetch(messagesUrl, {
+          headers: {
+            'api_access_token': CHATWOOT_ACCESS_TOKEN,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (msgResponse.ok) {
+          const messages = await msgResponse.json();
+          const payload = messages.payload || messages;
+          
+          // Find the most recent survey template message
+          const surveyMessages = payload.filter(msg => {
+            const timestamp = msg.created_at * 1000; // Convert to milliseconds
+            const isRecent = timestamp >= sixtySecondsAgo;
+            const isSurveyTemplate = msg.content?.includes('Deepal Family') || 
+                                    msg.content?.includes('satisfaction') ||
+                                    msg.content?.includes('5 courtes questions') ||
+                                    msg.template_params?.name === 'survey_vn';
+            return isRecent && isSurveyTemplate;
+          });
+
+          if (surveyMessages.length > 0) {
+            const phoneNumber = conv.meta?.sender?.phone_number || 
+                               conv.meta?.sender?.identifier ||
+                               conv.meta?.sender?.phone;
+            const customerName = conv.meta?.sender?.name || null;
+
+            if (phoneNumber) {
+              console.log('✅ Found recent survey template:', {
+                phone: phoneNumber,
+                name: customerName || '(no name)',
+                conversation_id: conv.id,
+                messages_found: surveyMessages.length,
+                latest_message_age: Math.round((now - surveyMessages[0].created_at * 1000) / 1000) + 's ago'
+              });
+              
+              return {
+                phone: phoneNumber,
+                name: customerName,
+                conversationId: conv.id
+              };
+            }
+          }
+        }
+      }
+      
+      console.log('⚠️ No recent survey template found in last 60 seconds');
+      return null;
+    }
+
+    // For unique tokens, search normally
     for (const conv of conversations.slice(0, 20)) {
-      // Get messages from this conversation
       const messagesUrl = `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${conv.id}/messages`;
       
       const msgResponse = await fetch(messagesUrl, {
@@ -314,7 +382,8 @@ async function searchRecentConversationsForFlowToken(flowToken) {
 
         if (hasFlowToken) {
           const phoneNumber = conv.meta?.sender?.phone_number || 
-                             conv.meta?.sender?.identifier;
+                             conv.meta?.sender?.identifier ||
+                             conv.meta?.sender?.phone;
           const customerName = conv.meta?.sender?.name || null;
 
           if (phoneNumber) {
@@ -325,8 +394,9 @@ async function searchRecentConversationsForFlowToken(flowToken) {
             });
             
             return {
-              phone_number: phoneNumber,
-              customer_name: customerName
+              phone: phoneNumber,
+              name: customerName,
+              conversationId: conv.id
             };
           }
         }

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { initializeDatabase, saveSurveyResponse, getPhoneByFlowToken } = require('./db/postgres');
 const { sendWhatsAppMessage, formatSurveyForWhatsApp } = require('./whatsapp-sender');
 const { getContactFromChatwoot, getPhoneByFlowTokenFromChatwoot } = require('./chatwoot-helper');
+const { initializeFlowQueue, getRecentPendingFlow } = require('./db/flow-queue');
 
 let dbInitialized = false;
 
@@ -69,6 +70,7 @@ module.exports = async (req, res) => {
   if (!dbInitialized) {
     try {
       await initializeDatabase();
+      await initializeFlowQueue();
       dbInitialized = true;
     } catch (error) {
       console.error('Database initialization error:', error);
@@ -133,19 +135,40 @@ module.exports = async (req, res) => {
         console.log('📊 Survey Data:', JSON.stringify(data, null, 2));
         console.log('========================================');
         
-        // Get phone number - NEW PRIORITY ORDER (CHATWOOT-ONLY):
-        // 1. Chatwoot conversation search (by flow_token) - PRIMARY, NO ZOHO DEPENDENCY
-        // 2. Database lookup - FALLBACK
-        // 3. Extract from flow_token pattern - LEGACY FALLBACK
-        // 4. From data payload - LAST RESORT
+        // Get phone number - NEW PRIORITY ORDER WITH FLOW QUEUE:
+        // 1. Flow queue (most reliable - tracks template sends) - PRIMARY
+        // 2. Chatwoot conversation search (by flow_token) - FALLBACK
+        // 3. Database lookup - FALLBACK
+        // 4. Extract from flow_token pattern - LEGACY FALLBACK
+        // 5. From data payload - LAST RESORT
         let phoneNumber = null;
         let contactName = null;
         let phoneSource = null;
         
-        // METHOD 1: Search Chatwoot for conversation containing this flow_token
+        // METHOD 1: Check flow queue (NEW - MOST RELIABLE!)
+        // This matches based on the outgoing template that was sent
+        if (flow_token && ['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
+          console.log('🔍 PRIMARY METHOD: Checking flow queue for recent template send...');
+          try {
+            const queueResult = await getRecentPendingFlow(60); // Last 60 seconds
+            if (queueResult && queueResult.phone) {
+              phoneNumber = queueResult.phone;
+              contactName = queueResult.name || null;
+              phoneSource = 'flow_queue';
+              console.log('✅ FLOW QUEUE SUCCESS: Phone:', phoneNumber, '| Name:', contactName);
+            } else {
+              console.log('⚠️ No pending flows in queue (might be too old or already consumed)');
+            }
+          } catch (queueError) {
+            console.error('⚠️ Flow queue error:', queueError.message);
+            // Continue to fallback methods
+          }
+        }
+        
+        // METHOD 2: Search Chatwoot for conversation containing this flow_token
         // This works regardless of flow_token format - NO DEPENDENCY ON ZOHO
-        if (flow_token) {
-          console.log('🔍 PRIMARY METHOD: Searching Chatwoot conversations for flow_token...');
+        if (!phoneNumber && flow_token) {
+          console.log('🔍 FALLBACK: Searching Chatwoot conversations for flow_token...');
           try {
             const chatwootResult = await getPhoneByFlowTokenFromChatwoot(flow_token);
             if (chatwootResult && chatwootResult.phone) {
@@ -163,14 +186,17 @@ module.exports = async (req, res) => {
           }
         }
         
-        // METHOD 2: Database lookup (phone captured when user opened Flow)
-        if (!phoneNumber && flow_token) {
+        // METHOD 3: Database lookup (phone captured when user opened Flow)
+        // SKIP if flow_token is generic ("unused", "test", etc.) to avoid wrong matches
+        if (!phoneNumber && flow_token && !['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
           console.log('🔍 FALLBACK: Checking database for phone number...');
           phoneNumber = await getPhoneByFlowToken(flow_token);
           if (phoneNumber) {
             phoneSource = 'database_lookup';
             console.log('📞 Phone from DATABASE:', phoneNumber);
           }
+        } else if (flow_token && ['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
+          console.log('⚠️ SKIPPING database lookup - generic flow_token detected:', flow_token);
         }
         
         // METHOD 3: Extract from flow_token pattern (LEGACY - depends on Zoho format)
@@ -234,6 +260,12 @@ module.exports = async (req, res) => {
           console.error('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
         } else {
           console.log(`✅ Phone number validated: ${phoneNumber} (source: ${phoneSource})`);
+        }
+        
+        // CRITICAL: Add phone number to data object so it gets saved!
+        if (phoneNumber) {
+          data.phone_number = phoneNumber;
+          console.log('📞 Added phone number to data payload:', phoneNumber);
         }
         
         // Save to database with phone and name

@@ -1,5 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
 
+// Project identifier to isolate data (Deepal Maroc inbox ID)
+const PROJECT_INBOX_ID = 23;
+
 async function initializeDatabase() {
   const sql = neon(process.env.DATABASE_URL);
   
@@ -9,6 +12,7 @@ async function initializeDatabase() {
       flow_token TEXT NOT NULL,
       phone_number TEXT,
       whatsapp_name TEXT,
+      inbox_id INTEGER DEFAULT 23,
       
       -- Deepal Survey Fields
       q1_rating TEXT,
@@ -55,6 +59,12 @@ async function initializeDatabase() {
   await sql`
     ALTER TABLE survey_responses 
     ADD COLUMN IF NOT EXISTS whatsapp_name TEXT
+  `;
+  
+  // Add inbox_id column for project isolation (migration)
+  await sql`
+    ALTER TABLE survey_responses 
+    ADD COLUMN IF NOT EXISTS inbox_id INTEGER DEFAULT 23
   `;
   
   console.log('Database initialized successfully');
@@ -137,40 +147,99 @@ async function saveSurveyResponse(flowToken, data, whatsappName = null) {
   else if (satisfaction_score < 0.5) sentiment = 'negative';
   
   // Try to UPDATE existing row first (created by Chatwoot webhook)
-  // Use subquery to find the most recent row with this flow_token that has phone but no survey data
-  const updateResult = await sql`
-    UPDATE survey_responses
-    SET 
-      q1_rating = ${data.q1_rating || null},
-      q1_comment = ${data.q1_comment || null},
-      q2_rating = ${data.q2_rating || null},
-      q2_comment = ${data.q2_comment || null},
-      q3_followup = ${data.q3_followup || null},
-      q4_rating = ${data.q4_rating || null},
-      q4_comment = ${data.q4_comment || null},
-      q5_rating = ${data.q5_rating || null},
-      q5_comment = ${data.q5_comment || null},
-      final_comments = ${data.final_comments || null},
-      satisfaction_score = ${satisfaction_score},
-      is_promoter = ${is_promoter},
-      is_detractor = ${is_detractor},
-      needs_followup = ${needs_followup},
-      sentiment = ${sentiment},
-      updated_at = NOW()
-    WHERE id = (
-      SELECT id 
-      FROM survey_responses 
-      WHERE flow_token = ${flowToken}
-        AND q1_rating IS NULL
-      ORDER BY created_at DESC
-      LIMIT 1
-    )
-    RETURNING id
-  `;
+  // Strategy: Find the most recent row (within time window) with this flow_token that doesn't have survey data yet
+  // If flow_token is generic ("unused"), only match very recent rows (30s) to avoid cross-contamination
+  const isGenericToken = ['unused', 'test', 'demo'].includes(flowToken.toLowerCase());
+  const timeWindowSeconds = isGenericToken ? 30 : 300; // 30 seconds for generic, 5 minutes for unique tokens
+  
+  // Build the query with explicit parameter typing
+  let updateQuery;
+  if (phone_number) {
+    updateQuery = sql`
+      UPDATE survey_responses
+      SET 
+        q1_rating = ${data.q1_rating || null},
+        q1_comment = ${data.q1_comment || null},
+        q2_rating = ${data.q2_rating || null},
+        q2_comment = ${data.q2_comment || null},
+        q3_followup = ${data.q3_followup || null},
+        q4_rating = ${data.q4_rating || null},
+        q4_comment = ${data.q4_comment || null},
+        q5_rating = ${data.q5_rating || null},
+        q5_comment = ${data.q5_comment || null},
+        final_comments = ${data.final_comments || null},
+        phone_number = COALESCE(phone_number, ${phone_number}),
+        whatsapp_name = COALESCE(whatsapp_name, ${whatsappName}),
+        satisfaction_score = ${satisfaction_score},
+        is_promoter = ${is_promoter},
+        is_detractor = ${is_detractor},
+        needs_followup = ${needs_followup},
+        sentiment = ${sentiment},
+        updated_at = NOW()
+      WHERE id = (
+        SELECT id 
+        FROM survey_responses 
+        WHERE flow_token = ${flowToken}
+          AND inbox_id = ${PROJECT_INBOX_ID}
+          AND q1_rating IS NULL
+          AND q2_rating IS NULL
+          AND q4_rating IS NULL
+          AND q5_rating IS NULL
+          AND created_at >= NOW() - (${timeWindowSeconds}::text || ' seconds')::INTERVAL
+          AND phone_number = ${phone_number}
+        ORDER BY created_at DESC
+        LIMIT 1
+      )
+      RETURNING id, phone_number, whatsapp_name
+    `;
+  } else {
+    updateQuery = sql`
+      UPDATE survey_responses
+      SET 
+        q1_rating = ${data.q1_rating || null},
+        q1_comment = ${data.q1_comment || null},
+        q2_rating = ${data.q2_rating || null},
+        q2_comment = ${data.q2_comment || null},
+        q3_followup = ${data.q3_followup || null},
+        q4_rating = ${data.q4_rating || null},
+        q4_comment = ${data.q4_comment || null},
+        q5_rating = ${data.q5_rating || null},
+        q5_comment = ${data.q5_comment || null},
+        final_comments = ${data.final_comments || null},
+        whatsapp_name = COALESCE(whatsapp_name, ${whatsappName}),
+        satisfaction_score = ${satisfaction_score},
+        is_promoter = ${is_promoter},
+        is_detractor = ${is_detractor},
+        needs_followup = ${needs_followup},
+        sentiment = ${sentiment},
+        updated_at = NOW()
+      WHERE id = (
+        SELECT id 
+        FROM survey_responses 
+        WHERE flow_token = ${flowToken}
+          AND inbox_id = ${PROJECT_INBOX_ID}
+          AND q1_rating IS NULL
+          AND q2_rating IS NULL
+          AND q4_rating IS NULL
+          AND q5_rating IS NULL
+          AND created_at >= NOW() - (${timeWindowSeconds}::text || ' seconds')::INTERVAL
+        ORDER BY created_at DESC
+        LIMIT 1
+      )
+      RETURNING id, phone_number, whatsapp_name
+    `;
+  }
+  
+  const updateResult = await updateQuery;
   
   // If UPDATE succeeded, return that row
   if (updateResult.length > 0) {
     console.log('✅ Updated existing row with survey data, ID:', updateResult[0].id);
+    console.log('📞 Updated row phone:', updateResult[0].phone_number);
+    console.log('👤 Updated row name:', updateResult[0].whatsapp_name);
+    if (isGenericToken) {
+      console.log('⚠️ Note: Used generic flow_token "' + flowToken + '" - matched by time window (' + timeWindowSeconds + 's)');
+    }
     return updateResult[0];
   }
   
@@ -181,6 +250,7 @@ async function saveSurveyResponse(flowToken, data, whatsappName = null) {
       flow_token,
       phone_number,
       whatsapp_name,
+      inbox_id,
       q1_rating,
       q1_comment,
       q2_rating,
@@ -200,6 +270,7 @@ async function saveSurveyResponse(flowToken, data, whatsappName = null) {
       ${flowToken},
       ${phone_number},
       ${whatsappName},
+      ${PROJECT_INBOX_ID},
       ${data.q1_rating || null},
       ${data.q1_comment || null},
       ${data.q2_rating || null},
@@ -233,6 +304,7 @@ async function getAllResponses() {
       sentiment, needs_followup, created_at, updated_at,
       response_date, response_time, response_day_of_week, response_month
     FROM survey_responses 
+    WHERE inbox_id = ${PROJECT_INBOX_ID}
     ORDER BY created_at DESC
   `;
   console.log('📊 Retrieved', responses.length, 'responses (with whatsapp_name column)');
@@ -247,27 +319,18 @@ async function storeFlowTokenMapping(flowToken, phoneNumber, whatsappName = null
   const sql = neon(process.env.DATABASE_URL);
   
   try {
-    // Insert new record for EACH flow submission (no conflict check)
-    await sql`
-      INSERT INTO survey_responses (
-        flow_token,
-        phone_number,
-        whatsapp_name
-      ) VALUES (
-        ${flowToken},
-        ${phoneNumber},
-        ${whatsappName}
-      )
-    `;
+    // DON'T insert a new row - the flow endpoint will handle that
+    // This function is just for logging/tracking purposes
+    // The actual row creation happens in saveSurveyResponse()
     
-    console.log('✅ Flow token mapping stored:', {
+    console.log('✅ Flow token mapping detected (NOT creating row - queue handles this):', {
       token: flowToken.substring(0, 20) + '...',
       phone: phoneNumber,
       name: whatsappName || '(no name provided)'
     });
     return { success: true };
   } catch (error) {
-    console.error('❌ Error storing flow token mapping:', error);
+    console.error('❌ Error in flow token mapping:', error);
     return { success: false, error: error.message };
   }
 }
@@ -284,6 +347,7 @@ async function getPhoneByFlowToken(flowToken) {
       SELECT phone_number, whatsapp_name 
       FROM survey_responses 
       WHERE flow_token = ${flowToken}
+      AND inbox_id = ${PROJECT_INBOX_ID}
       AND phone_number IS NOT NULL
       ORDER BY created_at DESC
       LIMIT 1
@@ -319,6 +383,7 @@ async function updatePhoneNumberByFlowToken(flowToken, phoneNumber) {
         phone_number = ${phoneNumber},
         updated_at = NOW()
       WHERE flow_token = ${flowToken}
+      AND inbox_id = ${PROJECT_INBOX_ID}
       RETURNING id
     `;
     

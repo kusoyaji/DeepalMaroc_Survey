@@ -1,6 +1,7 @@
 // Chatwoot Webhook - Captures Flow submissions with phone numbers
 const { initializeDatabase, updatePhoneNumberByFlowToken, storeFlowTokenMapping } = require('./db/postgres');
 const { sendSurveyToChatwoot } = require('./chatwoot-helper');
+const { initializeFlowQueue, addPendingFlow, cleanupFlowQueue } = require('./db/flow-queue');
 
 let dbInitialized = false;
 
@@ -55,7 +56,13 @@ module.exports = async (req, res) => {
     
     if (!dbInitialized) {
       await initializeDatabase();
+      await initializeFlowQueue();
       dbInitialized = true;
+    }
+    
+    // Cleanup old queue entries periodically (1% chance per request)
+    if (Math.random() < 0.01) {
+      cleanupFlowQueue().catch(err => console.error('Cleanup error:', err));
     }
     
     const event = payload.event;
@@ -66,6 +73,42 @@ module.exports = async (req, res) => {
     console.log('📱 Sender:', JSON.stringify(payload.sender || {}, null, 2));
     console.log('💬 Content:', content?.substring(0, 100));
     
+    // ========================================
+    // NEW: Track OUTGOING survey templates
+    // ========================================
+    if (event === 'message_created' && messageType === 'outgoing') {
+      // Check if this is a survey template being sent
+      const isSurveyTemplate = content?.includes('Deepal Family') || 
+                              content?.includes('satisfaction') ||
+                              content?.includes('5 courtes questions') ||
+                              payload.additional_attributes?.template_params?.name === 'survey_vn';
+      
+      if (isSurveyTemplate) {
+        // CRITICAL: For OUTGOING messages, the customer info is in conversation.meta.sender
+        // NOT in payload.sender (which is the agent sending the message)
+        const phoneNumber = payload.conversation?.meta?.sender?.phone_number || 
+                           payload.conversation?.meta?.sender?.identifier;
+        const whatsappName = payload.conversation?.meta?.sender?.name || null;
+        const conversationId = payload.conversation?.id;
+        const messageId = payload.id;
+        
+        if (phoneNumber) {
+          console.log('📤 OUTGOING survey template detected!');
+          console.log('   → Phone:', phoneNumber);
+          console.log('   → Name:', whatsappName || '(no name)');
+          console.log('   → Conversation ID:', conversationId);
+          
+          // Add to pending flow queue
+          await addPendingFlow(phoneNumber, whatsappName, conversationId, messageId);
+          
+          return res.status(200).json({ status: 'template_tracked', phone: phoneNumber });
+        }
+      }
+    }
+    
+    // ========================================
+    // EXISTING: Handle INCOMING flow submissions
+    // ========================================
     if (event === 'message_created' && messageType === 'incoming' && content && content.includes('Form Submission')) {
       console.log('Flow submission detected');
       
