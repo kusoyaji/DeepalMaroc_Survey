@@ -1,11 +1,19 @@
 // WhatsApp Webhook Handler - Captures phone numbers from Flow messages
 // AND forwards all events to Chatwoot
+// AND auto-sends Flow when keyword "deepal new survey" is received
 const { storeFlowTokenMapping, initializeDatabase } = require('./db/postgres');
+const { storeInstallationFlowMapping } = require('./db/installation-postgres');
+const { sendFlowMessage } = require('./whatsapp-sender');
+const { addPendingFlow, initializeFlowQueue } = require('./db/flow-queue');
+const crypto = require('crypto');
 
 let dbInitialized = false;
 
 // Chatwoot webhook URL - will auto-forward all WhatsApp events
 const CHATWOOT_WEBHOOK = process.env.CHATWOOT_WEBHOOK_URL || '';
+
+// Flow ID for the installation survey (set in Vercel env vars)
+const DEEPAL_FLOW_ID = process.env.DEEPAL_FLOW_ID || '';
 
 async function forwardToChatwoot(body) {
   if (!CHATWOOT_WEBHOOK) {
@@ -66,6 +74,7 @@ module.exports = async (req, res) => {
       // Initialize database on first use
       if (!dbInitialized) {
         await initializeDatabase();
+        await initializeFlowQueue();
         dbInitialized = true;
       }
       
@@ -155,6 +164,44 @@ module.exports = async (req, res) => {
                     console.log('✅ Stored phone→flow_token mapping:', phoneNumber, whatsappName ? `(${whatsappName})` : '', '→', actualFlowToken.substring(0, 20) + '...');
                   } else {
                     console.error('❌ Missing flow_token or phone_number for storage!');
+                  }
+                }
+                
+                // ========================================
+                // KEYWORD TRIGGER: Auto-send Flow when user texts "deepal new survey"
+                // ========================================
+                if (messageType === 'text' && message.text?.body) {
+                  const messageText = message.text.body.trim().toLowerCase();
+                  const triggerKeywords = ['deepal new survey', 'deepal survey', 'new survey'];
+                  
+                  if (triggerKeywords.some(kw => messageText.includes(kw))) {
+                    console.log('🎯 KEYWORD TRIGGER DETECTED:', message.text.body);
+                    console.log('📞 From:', phoneNumber, '| Name:', whatsappName);
+                    
+                    if (DEEPAL_FLOW_ID) {
+                      try {
+                        // Generate a unique flow token with phone embedded
+                        const flowToken = `deepal-${phoneNumber}-${crypto.randomUUID()}`;
+                        
+                        // Store the phone mapping BEFORE sending the flow
+                        await storeFlowTokenMapping(flowToken, phoneNumber, whatsappName);
+                        await storeInstallationFlowMapping(flowToken, phoneNumber, whatsappName);
+                        
+                        // Also add to flow queue for redundancy
+                        await addPendingFlow(
+                          phoneNumber.startsWith('+') ? phoneNumber : '+' + phoneNumber,
+                          whatsappName
+                        );
+                        
+                        // Send the flow
+                        await sendFlowMessage(phoneNumber, DEEPAL_FLOW_ID, flowToken);
+                        console.log('✅ Flow sent to', phoneNumber, 'via keyword trigger');
+                      } catch (flowError) {
+                        console.error('❌ Failed to send flow via keyword:', flowError.message);
+                      }
+                    } else {
+                      console.error('❌ DEEPAL_FLOW_ID not set in environment variables!');
+                    }
                   }
                 }
               }

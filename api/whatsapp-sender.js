@@ -90,7 +90,72 @@ function formatSurveyForWhatsApp(data) {
   return message;
 }
 
+/**
+ * Send a WhatsApp Flow (interactive message) to a recipient
+ * Used to auto-trigger the survey when a keyword is detected
+ */
+async function sendFlowMessage(recipientPhone, flowId, flowToken) {
+  const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
+  
+  const body = {
+    messaging_product: 'whatsapp',
+    to: recipientPhone,
+    type: 'interactive',
+    interactive: {
+      type: 'flow',
+      header: {
+        type: 'text',
+        text: 'Enquête Satisfaction Deepal'
+      },
+      body: {
+        text: 'Bonjour ! Nous aimerions connaître votre avis sur votre expérience avec Deepal Maroc.'
+      },
+      footer: {
+        text: '2 minutes seulement'
+      },
+      action: {
+        name: 'flow',
+        parameters: {
+          flow_message_version: '3',
+          flow_token: flowToken,
+          flow_id: flowId,
+          flow_cta: "Commencer l'enquête",
+          flow_action: 'navigate',
+          flow_action_payload: {
+            screen: 'QUESTION_ONE'
+          }
+        }
+      }
+    }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error('❌ WhatsApp Flow send error:', result);
+      throw new Error(`WhatsApp Flow API failed: ${JSON.stringify(result)}`);
+    }
+
+    console.log('✅ WhatsApp Flow sent to:', recipientPhone, '| Message ID:', result.messages?.[0]?.id);
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send WhatsApp Flow:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   sendWhatsAppMessage,
-  formatSurveyForWhatsApp
+  formatSurveyForWhatsApp,
+  sendFlowMessage
 };
