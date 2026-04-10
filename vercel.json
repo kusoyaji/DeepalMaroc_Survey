@@ -1,8 +1,11 @@
 {
   "rewrites": [
     { "source": "/api/flow", "destination": "/api/flow.js" },
+    { "source": "/api/installation-flow", "destination": "/api/installation-flow.js" },
     { "source": "/api/responses", "destination": "/api/responses.js" },
+    { "source": "/api/installation-responses", "destination": "/api/installation-responses.js" },
     { "source": "/api/export", "destination": "/api/export.js" },
+    { "source": "/api/installation-export", "destination": "/api/installation-export.js" },
     { "source": "/api/webhook", "destination": "/api/webhook.js" },
     { "source": "/api/chatwoot-webhook", "destination": "/api/chatwoot-webhook.js" },
     { "source": "/api/chatwoot-test", "destination": "/api/chatwoot-test.js" },

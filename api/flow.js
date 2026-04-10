@@ -150,7 +150,7 @@ module.exports = async (req, res) => {
         if (flow_token && ['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
           console.log('🔍 PRIMARY METHOD: Checking flow queue for recent template send...');
           try {
-            const queueResult = await getRecentPendingFlow(60); // Last 60 seconds
+            const queueResult = await getRecentPendingFlow(600); // Last 10 minutes
             if (queueResult && queueResult.phone) {
               phoneNumber = queueResult.phone;
               contactName = queueResult.name || null;

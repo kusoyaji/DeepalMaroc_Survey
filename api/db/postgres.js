@@ -150,7 +150,7 @@ async function saveSurveyResponse(flowToken, data, whatsappName = null) {
   // Strategy: Find the most recent row (within time window) with this flow_token that doesn't have survey data yet
   // If flow_token is generic ("unused"), only match very recent rows (30s) to avoid cross-contamination
   const isGenericToken = ['unused', 'test', 'demo'].includes(flowToken.toLowerCase());
-  const timeWindowSeconds = isGenericToken ? 30 : 300; // 30 seconds for generic, 5 minutes for unique tokens
+  const timeWindowSeconds = 600; // 10 minutes — enough time for user to complete the survey
   
   // Build the query with explicit parameter typing
   let updateQuery;
@@ -314,21 +314,43 @@ async function getAllResponses() {
 /**
  * Store flow_token → phone_number mapping
  * Called by /api/webhook when user starts a Flow
+ * Creates a placeholder row so saveSurveyResponse() can UPDATE it with survey data later
  */
 async function storeFlowTokenMapping(flowToken, phoneNumber, whatsappName = null) {
   const sql = neon(process.env.DATABASE_URL);
   
   try {
-    // DON'T insert a new row - the flow endpoint will handle that
-    // This function is just for logging/tracking purposes
-    // The actual row creation happens in saveSurveyResponse()
+    // Check if a recent placeholder already exists for this phone (avoid duplicates)
+    const existing = await sql`
+      SELECT id FROM survey_responses
+      WHERE flow_token = ${flowToken}
+        AND phone_number = ${phoneNumber}
+        AND inbox_id = ${PROJECT_INBOX_ID}
+        AND q1_rating IS NULL
+        AND created_at >= NOW() - INTERVAL '30 minutes'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
     
-    console.log('✅ Flow token mapping detected (NOT creating row - queue handles this):', {
+    if (existing.length > 0) {
+      console.log('✅ Placeholder already exists for this phone, ID:', existing[0].id);
+      return { success: true, id: existing[0].id, existing: true };
+    }
+    
+    // Insert a placeholder row with phone number — survey data will be filled later
+    const result = await sql`
+      INSERT INTO survey_responses (flow_token, phone_number, whatsapp_name, inbox_id)
+      VALUES (${flowToken}, ${phoneNumber}, ${whatsappName}, ${PROJECT_INBOX_ID})
+      RETURNING id
+    `;
+    
+    console.log('✅ Flow token mapping STORED in DB:', {
+      id: result[0].id,
       token: flowToken.substring(0, 20) + '...',
       phone: phoneNumber,
       name: whatsappName || '(no name provided)'
     });
-    return { success: true };
+    return { success: true, id: result[0].id };
   } catch (error) {
     console.error('❌ Error in flow token mapping:', error);
     return { success: false, error: error.message };

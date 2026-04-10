@@ -82,7 +82,7 @@ async function consumePendingFlow(phoneNumber) {
         WHERE phone_number = ${phoneNumber}
           AND inbox_id = ${PROJECT_INBOX_ID}
           AND consumed = FALSE
-          AND created_at >= NOW() - INTERVAL '10 minutes'
+          AND created_at >= NOW() - INTERVAL '30 minutes'
         ORDER BY created_at DESC
         LIMIT 1
       )

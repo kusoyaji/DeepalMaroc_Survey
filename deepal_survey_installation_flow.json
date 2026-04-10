@@ -1,0 +1,374 @@
+{
+  "version": "7.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "QUESTION_ONE": ["QUESTION_ONE_COMMENT", "QUESTION_TWO"],
+    "QUESTION_ONE_COMMENT": ["QUESTION_TWO"],
+    "QUESTION_TWO": ["QUESTION_TWO_COMMENT", "QUESTION_THREE"],
+    "QUESTION_TWO_COMMENT": ["QUESTION_THREE"],
+    "QUESTION_THREE": ["QUESTION_FOUR"],
+    "QUESTION_FOUR": ["QUESTION_FOUR_COMMENT", "QUESTION_FIVE"],
+    "QUESTION_FOUR_COMMENT": ["QUESTION_FIVE"],
+    "QUESTION_FIVE": ["QUESTION_FIVE_COMMENT", "QUESTION_SIX"],
+    "QUESTION_FIVE_COMMENT": ["QUESTION_SIX"],
+    "QUESTION_SIX": ["SUCCESS_SCREEN"]
+  },
+  "screens": [
+    {
+      "id": "QUESTION_ONE",
+      "title": "Question 1/6",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q1",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Accueil et Traitement Commercial"
+              },
+              {
+                "type": "TextBody",
+                "text": "Comment évaluez-vous l'accueil et le traitement commercial lors de votre visite ?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Votre évaluation",
+                "name": "q1_rating",
+                "required": true,
+                "data-source": [
+                  {"id": "5_etoiles", "title": "⭐⭐⭐⭐⭐ Excellent"},
+                  {"id": "4_etoiles", "title": "⭐⭐⭐⭐ Très bien"},
+                  {"id": "3_etoiles", "title": "⭐⭐⭐ Neutre"},
+                  {"id": "2_etoiles", "title": "⭐⭐ Peu satisfait"},
+                  {"id": "1_etoile", "title": "⭐ Pas du tout satisfait"}
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.q1_rating} == '3_etoiles'",
+                "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_ONE_COMMENT"}, "payload": {"q1_rating": "${form.q1_rating}"}}}],
+                "else": [
+                  {
+                    "type": "If",
+                    "condition": "${form.q1_rating} == '2_etoiles'",
+                    "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_ONE_COMMENT"}, "payload": {"q1_rating": "${form.q1_rating}"}}}],
+                    "else": [
+                      {
+                        "type": "If",
+                        "condition": "${form.q1_rating} == '1_etoile'",
+                        "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_ONE_COMMENT"}, "payload": {"q1_rating": "${form.q1_rating}"}}}],
+                        "else": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_TWO"}, "payload": {"q1_rating": "${form.q1_rating}", "q1_comment": ""}}}]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_ONE_COMMENT",
+      "title": "Précisions",
+      "data": {"q1_rating": {"type": "string", "__example__": "3_etoiles"}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_c1",
+            "children": [
+              {"type": "TextHeading", "text": "Pourriez-vous nous préciser la raison de votre note ?"},
+              {"type": "TextArea", "label": "Votre commentaire", "name": "q1_comment", "required": false, "helper-text": "Merci de préciser"},
+              {"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_TWO"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${form.q1_comment}"}}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_TWO",
+      "title": "Question 2/6",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q2",
+            "children": [
+              {"type": "TextHeading", "text": "Qualité de Livraison"},
+              {"type": "TextBody", "text": "Comment évaluez-vous la qualité de la livraison et le respect des délais ?"},
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Votre évaluation",
+                "name": "q2_rating",
+                "required": true,
+                "data-source": [
+                  {"id": "5_etoiles", "title": "⭐⭐⭐⭐⭐ Parfait"},
+                  {"id": "4_etoiles", "title": "⭐⭐⭐⭐ Bonne livraison"},
+                  {"id": "3_etoiles", "title": "⭐⭐⭐ Acceptable"},
+                  {"id": "2_etoiles", "title": "⭐⭐ Retard/qualité à améliorer"},
+                  {"id": "1_etoile", "title": "⭐ Très insatisfait"}
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.q2_rating} == '3_etoiles'",
+                "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_TWO_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${form.q2_rating}"}}}],
+                "else": [
+                  {
+                    "type": "If",
+                    "condition": "${form.q2_rating} == '2_etoiles'",
+                    "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_TWO_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${form.q2_rating}"}}}],
+                    "else": [
+                      {
+                        "type": "If",
+                        "condition": "${form.q2_rating} == '1_etoile'",
+                        "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_TWO_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${form.q2_rating}"}}}],
+                        "else": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_THREE"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${form.q2_rating}", "q2_comment": ""}}}]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_TWO_COMMENT",
+      "title": "Précisions",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}, "q2_rating": {"type": "string", "__example__": "3_etoiles"}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_c2",
+            "children": [
+              {"type": "TextHeading", "text": "Pourriez-vous nous préciser la raison de votre note ?"},
+              {"type": "TextArea", "label": "Votre commentaire", "name": "q2_comment", "required": false, "helper-text": "Merci de préciser"},
+              {"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_THREE"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${form.q2_comment}"}}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_THREE",
+      "title": "Question 3/6",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}, "q2_rating": {"type": "string", "__example__": "5_etoiles"}, "q2_comment": {"type": "string", "__example__": ""}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q3",
+            "children": [
+              {"type": "TextHeading", "text": "Appel de Suivi"},
+              {"type": "TextBody", "text": "Avez-vous reçu un appel de suivi de la part de votre conseiller dans les 48h après la livraison ?"},
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Réponse",
+                "name": "q3_followup",
+                "required": true,
+                "data-source": [
+                  {"id": "oui", "title": "Oui, j'ai été contacté"},
+                  {"id": "non", "title": "Non, je n'ai pas été contacté"}
+                ]
+              },
+              {"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FOUR"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${form.q3_followup}"}}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FOUR",
+      "title": "Question 4/6",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}, "q2_rating": {"type": "string", "__example__": "5_etoiles"}, "q2_comment": {"type": "string", "__example__": ""}, "q3_followup": {"type": "string", "__example__": "oui"}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q4",
+            "children": [
+              {"type": "TextHeading", "text": "Conseiller Commercial"},
+              {"type": "TextBody", "text": "Recommanderiez-vous votre conseiller commercial ?"},
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Votre évaluation",
+                "name": "q4_rating",
+                "required": true,
+                "data-source": [
+                  {"id": "5_etoiles", "title": "⭐⭐⭐⭐⭐ Oui, sans hésiter"},
+                  {"id": "4_etoiles", "title": "⭐⭐⭐⭐ Probablement oui"},
+                  {"id": "3_etoiles", "title": "⭐⭐⭐ Neutre"},
+                  {"id": "2_etoiles", "title": "⭐⭐ Probablement non"},
+                  {"id": "1_etoile", "title": "⭐ Certainement pas"}
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.q4_rating} == '3_etoiles'",
+                "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FOUR_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${form.q4_rating}"}}}],
+                "else": [
+                  {
+                    "type": "If",
+                    "condition": "${form.q4_rating} == '2_etoiles'",
+                    "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FOUR_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${form.q4_rating}"}}}],
+                    "else": [
+                      {
+                        "type": "If",
+                        "condition": "${form.q4_rating} == '1_etoile'",
+                        "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FOUR_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${form.q4_rating}"}}}],
+                        "else": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FIVE"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${form.q4_rating}", "q4_comment": ""}}}]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FOUR_COMMENT",
+      "title": "Précisions",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}, "q2_rating": {"type": "string", "__example__": "5_etoiles"}, "q2_comment": {"type": "string", "__example__": ""}, "q3_followup": {"type": "string", "__example__": "oui"}, "q4_rating": {"type": "string", "__example__": "3_etoiles"}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_c4",
+            "children": [
+              {"type": "TextHeading", "text": "Pourriez-vous nous préciser la raison de votre note ?"},
+              {"type": "TextArea", "label": "Votre commentaire", "name": "q4_comment", "required": false, "helper-text": "Merci de préciser"},
+              {"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FIVE"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${data.q4_rating}", "q4_comment": "${form.q4_comment}"}}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FIVE",
+      "title": "Question 5/6",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}, "q2_rating": {"type": "string", "__example__": "5_etoiles"}, "q2_comment": {"type": "string", "__example__": ""}, "q3_followup": {"type": "string", "__example__": "oui"}, "q4_rating": {"type": "string", "__example__": "5_etoiles"}, "q4_comment": {"type": "string", "__example__": ""}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q5",
+            "children": [
+              {"type": "TextHeading", "text": "Marque Deepal"},
+              {"type": "TextBody", "text": "Recommanderiez-vous la marque Deepal ?"},
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Votre évaluation",
+                "name": "q5_rating",
+                "required": true,
+                "data-source": [
+                  {"id": "5_etoiles", "title": "⭐⭐⭐⭐⭐ Oui, absolument"},
+                  {"id": "4_etoiles", "title": "⭐⭐⭐⭐ Probablement oui"},
+                  {"id": "3_etoiles", "title": "⭐⭐⭐ Neutre"},
+                  {"id": "2_etoiles", "title": "⭐⭐ Plutôt non"},
+                  {"id": "1_etoile", "title": "⭐ Non, pas du tout"}
+                ]
+              },
+              {
+                "type": "If",
+                "condition": "${form.q5_rating} == '3_etoiles'",
+                "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FIVE_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${data.q4_rating}", "q4_comment": "${data.q4_comment}", "q5_rating": "${form.q5_rating}"}}}],
+                "else": [
+                  {
+                    "type": "If",
+                    "condition": "${form.q5_rating} == '2_etoiles'",
+                    "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FIVE_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${data.q4_rating}", "q4_comment": "${data.q4_comment}", "q5_rating": "${form.q5_rating}"}}}],
+                    "else": [
+                      {
+                        "type": "If",
+                        "condition": "${form.q5_rating} == '1_etoile'",
+                        "then": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_FIVE_COMMENT"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${data.q4_rating}", "q4_comment": "${data.q4_comment}", "q5_rating": "${form.q5_rating}"}}}],
+                        "else": [{"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_SIX"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${data.q4_rating}", "q4_comment": "${data.q4_comment}", "q5_rating": "${form.q5_rating}", "q5_comment": ""}}}]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FIVE_COMMENT",
+      "title": "Précisions",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}, "q2_rating": {"type": "string", "__example__": "5_etoiles"}, "q2_comment": {"type": "string", "__example__": ""}, "q3_followup": {"type": "string", "__example__": "oui"}, "q4_rating": {"type": "string", "__example__": "5_etoiles"}, "q4_comment": {"type": "string", "__example__": ""}, "q5_rating": {"type": "string", "__example__": "3_etoiles"}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_c5",
+            "children": [
+              {"type": "TextHeading", "text": "Pourriez-vous nous préciser la raison de votre note ?"},
+              {"type": "TextArea", "label": "Votre commentaire", "name": "q5_comment", "required": false, "helper-text": "Merci de préciser"},
+              {"type": "Footer", "label": "Continuer", "on-click-action": {"name": "navigate", "next": {"type": "screen", "name": "QUESTION_SIX"}, "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${data.q4_rating}", "q4_comment": "${data.q4_comment}", "q5_rating": "${data.q5_rating}", "q5_comment": "${form.q5_comment}"}}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_SIX",
+      "title": "Question 6/6",
+      "data": {"q1_rating": {"type": "string", "__example__": "5_etoiles"}, "q1_comment": {"type": "string", "__example__": ""}, "q2_rating": {"type": "string", "__example__": "5_etoiles"}, "q2_comment": {"type": "string", "__example__": ""}, "q3_followup": {"type": "string", "__example__": "oui"}, "q4_rating": {"type": "string", "__example__": "5_etoiles"}, "q4_comment": {"type": "string", "__example__": ""}, "q5_rating": {"type": "string", "__example__": "5_etoiles"}, "q5_comment": {"type": "string", "__example__": ""}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q6",
+            "children": [
+              {"type": "TextHeading", "text": "Remarques Finales"},
+              {"type": "TextBody", "text": "Avez-vous une remarque ou une suggestion pour améliorer notre service ?"},
+              {"type": "TextArea", "label": "Vos remarques", "name": "final_comments", "required": false, "helper-text": "Partagez vos idées"},
+              {"type": "Footer", "label": "Valider", "on-click-action": {"name": "data_exchange", "payload": {"q1_rating": "${data.q1_rating}", "q1_comment": "${data.q1_comment}", "q2_rating": "${data.q2_rating}", "q2_comment": "${data.q2_comment}", "q3_followup": "${data.q3_followup}", "q4_rating": "${data.q4_rating}", "q4_comment": "${data.q4_comment}", "q5_rating": "${data.q5_rating}", "q5_comment": "${data.q5_comment}", "final_comments": "${form.final_comments}"}}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS_SCREEN",
+      "title": "Confirmation",
+      "terminal": true,
+      "success": true,
+      "data": {"confirmation_message": {"type": "string", "__example__": "Merci !"}},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "success_form",
+            "children": [
+              {"type": "TextHeading", "text": "✅ Questionnaire Complété"},
+              {"type": "TextBody", "text": "${data.confirmation_message}"},
+              {"type": "Footer", "label": "Terminer", "on-click-action": {"name": "complete", "payload": {}}}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
