@@ -223,9 +223,47 @@ async function storeInstallationFlowMapping(flowToken, phoneNumber, whatsappName
   }
 }
 
+/**
+ * Backup: Update the most recent installation response that has no phone number
+ * Called by Chatwoot webhook when it sees a Form Submission with a known phone
+ */
+async function updateInstallationPhoneByRecent(phoneNumber, whatsappName = null) {
+  const sql = neon(process.env.DATABASE_URL);
+  
+  try {
+    const result = await sql`
+      UPDATE installation_survey_responses
+      SET 
+        phone_number = ${phoneNumber},
+        whatsapp_name = COALESCE(whatsapp_name, ${whatsappName}),
+        updated_at = NOW()
+      WHERE id = (
+        SELECT id FROM installation_survey_responses
+        WHERE phone_number IS NULL
+          AND created_at >= NOW() - INTERVAL '2 minutes'
+        ORDER BY created_at DESC
+        LIMIT 1
+      )
+      RETURNING id, phone_number
+    `;
+    
+    if (result.length > 0) {
+      console.log('✅ Backup: Patched installation response ID:', result[0].id, 'with phone:', phoneNumber);
+      return result[0];
+    }
+    
+    console.log('ℹ️ No recent phoneless installation responses to patch');
+    return null;
+  } catch (error) {
+    console.error('❌ updateInstallationPhoneByRecent error:', error.message);
+    return null;
+  }
+}
+
 module.exports = {
   initializeInstallationDB,
   saveInstallationResponse,
   getAllInstallationResponses,
-  storeInstallationFlowMapping
+  storeInstallationFlowMapping,
+  updateInstallationPhoneByRecent
 };

@@ -145,24 +145,22 @@ module.exports = async (req, res) => {
         let contactName = null;
         let phoneSource = null;
         
-        // METHOD 1: Check flow queue (NEW - MOST RELIABLE!)
+        // METHOD 1: Check flow queue (MOST RELIABLE!) - ALWAYS check first
         // This matches based on the outgoing template that was sent
-        if (flow_token && ['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
-          console.log('🔍 PRIMARY METHOD: Checking flow queue for recent template send...');
-          try {
-            const queueResult = await getRecentPendingFlow(600); // Last 10 minutes
-            if (queueResult && queueResult.phone) {
-              phoneNumber = queueResult.phone;
-              contactName = queueResult.name || null;
-              phoneSource = 'flow_queue';
-              console.log('✅ FLOW QUEUE SUCCESS: Phone:', phoneNumber, '| Name:', contactName);
-            } else {
-              console.log('⚠️ No pending flows in queue (might be too old or already consumed)');
-            }
-          } catch (queueError) {
-            console.error('⚠️ Flow queue error:', queueError.message);
-            // Continue to fallback methods
+        console.log('🔍 PRIMARY METHOD: Checking flow queue for recent template send...');
+        try {
+          const queueResult = await getRecentPendingFlow(600); // Last 10 minutes
+          if (queueResult && queueResult.phone) {
+            phoneNumber = queueResult.phone;
+            contactName = queueResult.name || null;
+            phoneSource = 'flow_queue';
+            console.log('✅ FLOW QUEUE SUCCESS: Phone:', phoneNumber, '| Name:', contactName);
+          } else {
+            console.log('⚠️ No pending flows in queue (might be too old or already consumed)');
           }
+        } catch (queueError) {
+          console.error('⚠️ Flow queue error:', queueError.message);
+          // Continue to fallback methods
         }
         
         // METHOD 2: Search Chatwoot for conversation containing this flow_token

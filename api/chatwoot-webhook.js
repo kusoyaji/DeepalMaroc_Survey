@@ -3,6 +3,7 @@ const { initializeDatabase, updatePhoneNumberByFlowToken, storeFlowTokenMapping 
 const { sendSurveyToChatwoot } = require('./chatwoot-helper');
 const { initializeFlowQueue, addPendingFlow, cleanupFlowQueue } = require('./db/flow-queue');
 const { sendWhatsAppFlow } = require('./whatsapp-sender');
+const { storeInstallationFlowMapping, updateInstallationPhoneByRecent } = require('./db/installation-postgres');
 
 let dbInitialized = false;
 
@@ -100,6 +101,14 @@ module.exports = async (req, res) => {
           await addPendingFlow(phoneNumber, whatsappName, conversationId, messageId);
           console.log('📝 Flow queue: ' + phoneNumber);
           
+          // Pre-create placeholder in installation table with phone
+          try {
+            await storeInstallationFlowMapping('deepal_installation_survey', phoneNumber, whatsappName);
+            console.log('📝 Installation placeholder created for: ' + phoneNumber);
+          } catch (err) {
+            console.error('⚠️ Installation placeholder error:', err.message);
+          }
+          
           // Strip + from phone for WhatsApp API
           const cleanPhone = phoneNumber.replace(/\+/g, '');
           console.log('📞 Sending flow to: ' + cleanPhone);
@@ -183,6 +192,17 @@ module.exports = async (req, res) => {
           console.log('   → Name:', whatsappName || '(no name)');
         } catch (dbError) {
           console.error('❌ Failed to store flow_token mapping:', dbError.message);
+        }
+      }
+      
+      // BACKUP: Even if flowToken is undefined, update the most recent installation response
+      // that doesn't have a phone number (created seconds ago by /api/installation-flow)
+      if (phoneNumber && phoneNumber !== 'unknown') {
+        try {
+          await updateInstallationPhoneByRecent(phoneNumber, whatsappName);
+          console.log('✅ Backup: Updated recent installation response with phone:', phoneNumber);
+        } catch (err) {
+          console.error('⚠️ Backup installation update error:', err.message);
         }
       }
       

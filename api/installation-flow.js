@@ -110,20 +110,18 @@ module.exports = async (req, res) => {
         let contactName = null;
         let phoneSource = null;
         
-        // METHOD 1: Flow queue (tracks outgoing template sends)
-        if (flow_token && ['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
-          console.log('🔍 Checking flow queue...');
-          try {
-            const queueResult = await getRecentPendingFlow(600); // 10 minutes
-            if (queueResult && queueResult.phone) {
-              phoneNumber = queueResult.phone;
-              contactName = queueResult.name || null;
-              phoneSource = 'flow_queue';
-              console.log('✅ FLOW QUEUE: Phone:', phoneNumber);
-            }
-          } catch (err) {
-            console.error('⚠️ Flow queue error:', err.message);
+        // METHOD 1: Flow queue (tracks outgoing template sends) - ALWAYS check first
+        console.log('🔍 Checking flow queue...');
+        try {
+          const queueResult = await getRecentPendingFlow(600); // 10 minutes
+          if (queueResult && queueResult.phone) {
+            phoneNumber = queueResult.phone;
+            contactName = queueResult.name || null;
+            phoneSource = 'flow_queue';
+            console.log('✅ FLOW QUEUE: Phone:', phoneNumber);
           }
+        } catch (err) {
+          console.error('⚠️ Flow queue error:', err.message);
         }
         
         // METHOD 2: Chatwoot conversation search
