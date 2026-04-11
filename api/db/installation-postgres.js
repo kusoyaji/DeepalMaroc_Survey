@@ -274,5 +274,60 @@ module.exports = {
   saveInstallationResponse,
   getAllInstallationResponses,
   storeInstallationFlowMapping,
-  updateInstallationPhoneByRecent
+  updateInstallationPhoneByRecent,
+  updateInstallationResponse,
+  deleteInstallationResponses
 };
+
+async function updateInstallationResponse(id, fields) {
+  const sql = neon(process.env.DATABASE_URL);
+  
+  const allowedFields = ['whatsapp_name', 'phone_number', 'q1_nps', 'q2_satisfaction', 'q3_delais', 'q4_professionnalisme', 'q5_remarques', 'needs_followup'];
+  const setClauses = [];
+  const values = [];
+  
+  for (const [key, value] of Object.entries(fields)) {
+    if (allowedFields.includes(key)) {
+      setClauses.push(key);
+      values.push(value);
+    }
+  }
+  
+  if (setClauses.length === 0) {
+    throw new Error('No valid fields to update');
+  }
+  
+  // Build dynamic update using tagged template for each allowed field
+  const result = await sql`
+    UPDATE installation_survey_responses
+    SET
+      whatsapp_name = COALESCE(${fields.whatsapp_name !== undefined ? fields.whatsapp_name : null}, whatsapp_name),
+      phone_number = COALESCE(${fields.phone_number !== undefined ? fields.phone_number : null}, phone_number),
+      q1_nps = COALESCE(${fields.q1_nps !== undefined ? String(fields.q1_nps) : null}, q1_nps),
+      q2_satisfaction = COALESCE(${fields.q2_satisfaction !== undefined ? String(fields.q2_satisfaction) : null}, q2_satisfaction),
+      q3_delais = COALESCE(${fields.q3_delais !== undefined ? fields.q3_delais : null}, q3_delais),
+      q4_professionnalisme = COALESCE(${fields.q4_professionnalisme !== undefined ? String(fields.q4_professionnalisme) : null}, q4_professionnalisme),
+      q5_remarques = COALESCE(${fields.q5_remarques !== undefined ? fields.q5_remarques : null}, q5_remarques),
+      needs_followup = ${fields.needs_followup !== undefined ? fields.needs_followup : null},
+      updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  
+  if (result.length === 0) throw new Error('Response not found');
+  console.log('✏️ Updated installation response ID:', id);
+  return result[0];
+}
+
+async function deleteInstallationResponses(ids) {
+  const sql = neon(process.env.DATABASE_URL);
+  
+  const result = await sql`
+    DELETE FROM installation_survey_responses
+    WHERE id = ANY(${ids}::int[])
+    RETURNING id
+  `;
+  
+  console.log('🗑️ Deleted', result.length, 'installation responses:', ids);
+  return result.length;
+}

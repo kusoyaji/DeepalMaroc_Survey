@@ -178,6 +178,73 @@
             white-space: normal;
             overflow: visible;
         }
+        /* CRUD styles */
+        .btn {
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-edit { background: #3b82f6; color: white; }
+        .btn-edit:hover { background: #2563eb; }
+        .btn-delete { background: #ef4444; color: white; }
+        .btn-delete:hover { background: #dc2626; }
+        .btn-delete-all { background: #dc2626; color: white; padding: 10px 20px; font-size: 0.9rem; border-radius: 8px; }
+        .btn-delete-all:hover { background: #b91c1c; }
+        .btn-delete-all:disabled { background: #9ca3af; cursor: not-allowed; }
+        .actions-cell { white-space: nowrap; display: flex; gap: 6px; }
+        .checkbox-cell { width: 40px; text-align: center; }
+        .checkbox-cell input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #0f766e; }
+        .selected-count { font-size: 0.85rem; color: #666; margin-left: 10px; }
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h2 { margin-bottom: 20px; color: #333; }
+        .modal label { display: block; font-weight: 600; margin-top: 12px; margin-bottom: 4px; color: #555; font-size: 0.9rem; }
+        .modal input, .modal select, .modal textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .modal textarea { resize: vertical; min-height: 60px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+        .btn-save { background: #10b981; color: white; padding: 10px 24px; font-size: 0.95rem; }
+        .btn-save:hover { background: #059669; }
+        .btn-cancel { background: #6b7280; color: white; padding: 10px 24px; font-size: 0.95rem; }
+        .btn-cancel:hover { background: #4b5563; }
+        .toast {
+            position: fixed; bottom: 30px; right: 30px;
+            padding: 14px 24px; border-radius: 10px;
+            color: white; font-weight: 600; z-index: 2000;
+            opacity: 0; transition: opacity 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
         @media (max-width: 768px) {
             .header h1 { font-size: 1.5rem; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -237,20 +304,59 @@
 
         <div class="data-section">
             <div class="toolbar">
-                <button class="export-btn" onclick="exportToExcel()">📥 Exporter vers Excel</button>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button class="export-btn" onclick="exportToExcel()">📥 Exporter vers Excel</button>
+                    <button class="btn btn-delete-all" id="deleteSelectedBtn" disabled onclick="deleteSelected()">🗑️ Supprimer sélection</button>
+                    <span class="selected-count" id="selectedCount"></span>
+                </div>
                 <span class="refresh-info">Actualisation auto toutes les 10s</span>
             </div>
             <div id="dataContainer" class="loading">Chargement des données...</div>
         </div>
     </div>
 
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h2>✏️ Modifier la réponse</h2>
+            <input type="hidden" id="editId">
+            <label>Nom</label>
+            <input type="text" id="editName">
+            <label>Téléphone</label>
+            <input type="text" id="editPhone">
+            <label>NPS (0-10)</label>
+            <input type="number" id="editNps" min="0" max="10">
+            <label>Satisfaction (0-10)</label>
+            <input type="number" id="editSatisfaction" min="0" max="10">
+            <label>Délais respectés</label>
+            <select id="editDelais">
+                <option value="">-</option>
+                <option value="oui">Oui</option>
+                <option value="non">Non</option>
+            </select>
+            <label>Professionnalisme (0-10)</label>
+            <input type="number" id="editPro" min="0" max="10">
+            <label>Remarques</label>
+            <textarea id="editRemarks"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="closeModal()">Annuler</button>
+                <button class="btn btn-save" onclick="saveEdit()">💾 Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
     <script>
+        let allData = [];
+        let selectedIds = new Set();
+
         async function loadData() {
             try {
                 const response = await fetch('/api/installation-responses');
-                const data = await response.json();
-                updateStats(data);
-                displayTable(data);
+                allData = await response.json();
+                updateStats(allData);
+                displayTable(allData);
             } catch (error) {
                 document.getElementById('dataContainer').innerHTML =
                     '<p style="color: red;">Erreur de chargement: ' + error.message + '</p>';
@@ -264,26 +370,22 @@
                 return responseDate === new Date().toDateString();
             }).length;
 
-            // NPS calculation
             const promoters = data.filter(r => r.is_promoter).length;
             const passives = data.filter(r => r.is_passive).length;
             const detractors = data.filter(r => r.is_detractor).length;
             const nps = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
 
-            // Average satisfaction
             const validScores = data.filter(r => r.satisfaction_avg != null).map(r => parseFloat(r.satisfaction_avg));
             const avgSat = validScores.length > 0
                 ? validScores.reduce((sum, s) => sum + s, 0) / validScores.length
                 : 0;
 
-            // Délais rate
             const delaisAnswered = data.filter(r => r.q3_delais);
             const delaisOui = delaisAnswered.filter(r => r.q3_delais === 'oui').length;
             const delaisRate = delaisAnswered.length > 0
                 ? Math.round((delaisOui / delaisAnswered.length) * 100)
                 : 0;
 
-            // Average professionnalisme
             const proScores = data.filter(r => r.q4_professionnalisme).map(r => parseInt(r.q4_professionnalisme, 10)).filter(s => !isNaN(s));
             const avgPro = proScores.length > 0
                 ? (proScores.reduce((a, b) => a + b, 0) / proScores.length).toFixed(1)
@@ -295,7 +397,7 @@
             document.getElementById('totalResponses').textContent = total;
             document.getElementById('todayResponses').textContent = today;
             document.getElementById('npsScore').textContent = nps;
-            document.getElementById('npsDetail').textContent = `P:${promoters} | N:${passives} | D:${detractors}`;
+            document.getElementById('npsDetail').textContent = 'P:' + promoters + ' | N:' + passives + ' | D:' + detractors;
             document.getElementById('avgSatisfaction').textContent = total > 0 ? Math.round(avgSat * 100) + '%' : '0%';
             document.getElementById('delaisRate').textContent = delaisRate + '%';
             document.getElementById('avgProfessionnalisme').textContent = avgPro + '/10';
@@ -319,46 +421,166 @@
                 return;
             }
 
-            const table = `
-                <div style="overflow-x: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nom</th>
-                            <th>Téléphone</th>
-                            <th>Date</th>
-                            <th>NPS (0-10)</th>
-                            <th>Satisfaction (1-10)</th>
-                            <th>Délais</th>
-                            <th>Professionnalisme (1-10)</th>
-                            <th>Remarques</th>
-                            <th>Suivi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.map(r => `
-                            <tr>
-                                <td><strong>${escapeHtml(r.whatsapp_name || '-')}</strong></td>
-                                <td><strong>${escapeHtml(r.phone_number || 'N/A')}</strong></td>
-                                <td>${new Date(r.created_at).toLocaleString('fr-FR')}</td>
-                                <td><span class="score-badge ${getScoreClass(r.q1_nps)}">${r.q1_nps || '-'}</span></td>
-                                <td><span class="score-badge ${getScoreClass(r.q2_satisfaction)}">${r.q2_satisfaction || '-'}</span></td>
-                                <td><span class="${r.q3_delais === 'oui' ? 'delais-oui' : r.q3_delais === 'non' ? 'delais-non' : ''}">${r.q3_delais === 'oui' ? 'Oui' : r.q3_delais === 'non' ? 'Non' : '-'}</span></td>
-                                <td><span class="score-badge ${getScoreClass(r.q4_professionnalisme)}">${r.q4_professionnalisme || '-'}</span></td>
-                                <td class="remarks-cell" title="${escapeHtml(r.q5_remarques || '')}">${escapeHtml(r.q5_remarques || '-')}</td>
-                                <td>${r.needs_followup ? '<span class="followup-yes">⚠️ Oui</span>' : '<span class="followup-no">✓ Non</span>'}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                </div>
-            `;
+            // Clean up selectedIds that no longer exist
+            const existingIds = new Set(data.map(r => r.id));
+            for (const id of selectedIds) {
+                if (!existingIds.has(id)) selectedIds.delete(id);
+            }
+
+            const allChecked = data.length > 0 && data.every(r => selectedIds.has(r.id));
+
+            const table = '<div style="overflow-x: auto;">' +
+                '<table>' +
+                '<thead><tr>' +
+                '<th class="checkbox-cell"><input type="checkbox" id="selectAll" ' + (allChecked ? 'checked' : '') + ' onchange="toggleSelectAll(this)"></th>' +
+                '<th>Nom</th>' +
+                '<th>Téléphone</th>' +
+                '<th>Date</th>' +
+                '<th>NPS (0-10)</th>' +
+                '<th>Satisfaction (1-10)</th>' +
+                '<th>Délais</th>' +
+                '<th>Professionnalisme (1-10)</th>' +
+                '<th>Remarques</th>' +
+                '<th>Suivi</th>' +
+                '<th>Actions</th>' +
+                '</tr></thead>' +
+                '<tbody>' +
+                data.map(function(r) {
+                    var checked = selectedIds.has(r.id) ? 'checked' : '';
+                    return '<tr>' +
+                        '<td class="checkbox-cell"><input type="checkbox" data-id="' + r.id + '" ' + checked + ' onchange="toggleSelect(' + r.id + ', this)"></td>' +
+                        '<td><strong>' + escapeHtml(r.whatsapp_name || '-') + '</strong></td>' +
+                        '<td><strong>' + escapeHtml(r.phone_number || 'N/A') + '</strong></td>' +
+                        '<td>' + new Date(r.created_at).toLocaleString('fr-FR') + '</td>' +
+                        '<td><span class="score-badge ' + getScoreClass(r.q1_nps) + '">' + (r.q1_nps || '-') + '</span></td>' +
+                        '<td><span class="score-badge ' + getScoreClass(r.q2_satisfaction) + '">' + (r.q2_satisfaction || '-') + '</span></td>' +
+                        '<td><span class="' + (r.q3_delais === 'oui' ? 'delais-oui' : r.q3_delais === 'non' ? 'delais-non' : '') + '">' + (r.q3_delais === 'oui' ? 'Oui' : r.q3_delais === 'non' ? 'Non' : '-') + '</span></td>' +
+                        '<td><span class="score-badge ' + getScoreClass(r.q4_professionnalisme) + '">' + (r.q4_professionnalisme || '-') + '</span></td>' +
+                        '<td class="remarks-cell" title="' + escapeHtml(r.q5_remarques || '') + '">' + escapeHtml(r.q5_remarques || '-') + '</td>' +
+                        '<td>' + (r.needs_followup ? '<span class="followup-yes">\u26a0\ufe0f Oui</span>' : '<span class="followup-no">\u2713 Non</span>') + '</td>' +
+                        '<td><div class="actions-cell">' +
+                        '<button class="btn btn-edit" onclick="openEdit(' + r.id + ')">\u270f\ufe0f</button>' +
+                        '<button class="btn btn-delete" onclick="deleteSingle(' + r.id + ')">\ud83d\uddd1\ufe0f</button>' +
+                        '</div></td>' +
+                        '</tr>';
+                }).join('') +
+                '</tbody></table></div>';
 
             container.innerHTML = table;
+            updateDeleteBtn();
+        }
+
+        function toggleSelectAll(checkbox) {
+            if (checkbox.checked) {
+                allData.forEach(function(r) { selectedIds.add(r.id); });
+            } else {
+                selectedIds.clear();
+            }
+            displayTable(allData);
+        }
+
+        function toggleSelect(id, checkbox) {
+            if (checkbox.checked) {
+                selectedIds.add(id);
+            } else {
+                selectedIds.delete(id);
+            }
+            updateDeleteBtn();
+            // Update select-all state
+            var selectAll = document.getElementById('selectAll');
+            if (selectAll) {
+                selectAll.checked = allData.length > 0 && allData.every(function(r) { return selectedIds.has(r.id); });
+            }
+        }
+
+        function updateDeleteBtn() {
+            var btn = document.getElementById('deleteSelectedBtn');
+            var count = document.getElementById('selectedCount');
+            btn.disabled = selectedIds.size === 0;
+            count.textContent = selectedIds.size > 0 ? selectedIds.size + ' sélectionné(s)' : '';
+        }
+
+        function openEdit(id) {
+            var row = allData.find(function(r) { return r.id === id; });
+            if (!row) return;
+            document.getElementById('editId').value = row.id;
+            document.getElementById('editName').value = row.whatsapp_name || '';
+            document.getElementById('editPhone').value = row.phone_number || '';
+            document.getElementById('editNps').value = row.q1_nps || '';
+            document.getElementById('editSatisfaction').value = row.q2_satisfaction || '';
+            document.getElementById('editDelais').value = row.q3_delais || '';
+            document.getElementById('editPro').value = row.q4_professionnalisme || '';
+            document.getElementById('editRemarks').value = row.q5_remarques || '';
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        async function saveEdit() {
+            var id = parseInt(document.getElementById('editId').value);
+            var body = {
+                id: id,
+                whatsapp_name: document.getElementById('editName').value || null,
+                phone_number: document.getElementById('editPhone').value || null,
+                q1_nps: document.getElementById('editNps').value || null,
+                q2_satisfaction: document.getElementById('editSatisfaction').value || null,
+                q3_delais: document.getElementById('editDelais').value || null,
+                q4_professionnalisme: document.getElementById('editPro').value || null,
+                q5_remarques: document.getElementById('editRemarks').value || null
+            };
+            try {
+                var resp = await fetch('/api/installation-responses', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!resp.ok) throw new Error('Échec de la mise à jour');
+                closeModal();
+                showToast('Réponse mise à jour', 'success');
+                await loadData();
+            } catch (err) {
+                showToast('Erreur: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteSingle(id) {
+            if (!confirm('Supprimer cette réponse ?')) return;
+            await doDelete([id]);
+        }
+
+        async function deleteSelected() {
+            var count = selectedIds.size;
+            if (!confirm('Supprimer ' + count + ' réponse(s) ?')) return;
+            await doDelete(Array.from(selectedIds));
+        }
+
+        async function doDelete(ids) {
+            try {
+                var resp = await fetch('/api/installation-responses', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: ids })
+                });
+                if (!resp.ok) throw new Error('Échec de la suppression');
+                ids.forEach(function(id) { selectedIds.delete(id); });
+                showToast(ids.length + ' réponse(s) supprimée(s)', 'success');
+                await loadData();
+            } catch (err) {
+                showToast('Erreur: ' + err.message, 'error');
+            }
+        }
+
+        function showToast(message, type) {
+            var toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(function() { toast.classList.remove('show'); }, 3000);
         }
 
         function escapeHtml(text) {
-            const div = document.createElement('div');
+            var div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
@@ -366,6 +588,11 @@
         function exportToExcel() {
             window.location.href = '/api/installation-export';
         }
+
+        // Close modal on overlay click
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
 
         loadData();
         setInterval(loadData, 10000);
