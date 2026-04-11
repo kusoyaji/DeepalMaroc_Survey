@@ -2,8 +2,13 @@
 const { initializeDatabase, updatePhoneNumberByFlowToken, storeFlowTokenMapping } = require('./db/postgres');
 const { sendSurveyToChatwoot } = require('./chatwoot-helper');
 const { initializeFlowQueue, addPendingFlow, cleanupFlowQueue } = require('./db/flow-queue');
+const { sendWhatsAppFlow } = require('./whatsapp-sender');
 
 let dbInitialized = false;
+
+// Installation survey flow config
+const INSTALLATION_FLOW_ID = '960497796491131';
+const INSTALLATION_TRIGGER = 'deepal new survey';
 
 function parseFlowSubmission(messageContent) {
   const lines = messageContent.split('\n');
@@ -74,24 +79,73 @@ module.exports = async (req, res) => {
     console.log('💬 Content:', content?.substring(0, 100));
     
     // ========================================
-    // NEW: Track OUTGOING survey templates
+    // INSTALLATION SURVEY TRIGGER - Check BEFORE any other logic
     // ========================================
+    const msgTextLower = (content || '').trim().toLowerCase();
+    
+    // Check trigger on ANY event type - Chatwoot might use different values
+    if (msgTextLower === INSTALLATION_TRIGGER) {
+      const phoneNumber = payload.conversation?.meta?.sender?.phone_number || 
+                         payload.conversation?.meta?.sender?.identifier ||
+                         payload.sender?.phone_number;
+      const whatsappName = payload.conversation?.meta?.sender?.name || payload.sender?.name || null;
+      const conversationId = payload.conversation?.id;
+      const messageId = payload.id;
+
+      console.log('🔔 TRIGGER MATCHED! event=' + event + ' type=' + messageType);
+      console.log('🔔 Phone=' + phoneNumber + ' Name=' + whatsappName);
+
+      if (phoneNumber) {
+        try {
+          await addPendingFlow(phoneNumber, whatsappName, conversationId, messageId);
+          console.log('📝 Flow queue: ' + phoneNumber);
+          
+          // Strip + from phone for WhatsApp API
+          const cleanPhone = phoneNumber.replace(/\+/g, '');
+          console.log('📞 Sending flow to: ' + cleanPhone);
+          
+          await sendWhatsAppFlow(
+            cleanPhone,
+            INSTALLATION_FLOW_ID,
+            'deepal_installation_survey',
+            'Enquête Installation DEEPAL',
+            'Bonjour, Merci d\'avoir choisi DEEPAL. Suite à l\'installation de votre borne de recharge, nous vous serions reconnaissants de bien vouloir partager votre expérience. Ce questionnaire ne vous prendra que quelques secondes.',
+            'DEEPAL Maroc',
+            'Répondre au questionnaire'
+          );
+          console.log('✅ FLOW SENT to: ' + cleanPhone);
+          return res.status(200).json({ status: 'installation_flow_sent', phone: cleanPhone });
+        } catch (flowError) {
+          console.error('❌ FLOW SEND FAILED: ' + flowError.message);
+          console.error('❌ Full error: ' + JSON.stringify(flowError));
+          return res.status(200).json({ status: 'flow_send_error', error: flowError.message });
+        }
+      } else {
+        console.error('❌ TRIGGER matched but NO PHONE found!');
+        console.error('❌ conversation.meta.sender:', JSON.stringify(payload.conversation?.meta?.sender || {}));
+        console.error('❌ sender:', JSON.stringify(payload.sender || {}));
+      }
+    }
+
     if (event === 'message_created' && messageType === 'outgoing') {
+      const phoneNumber = payload.conversation?.meta?.sender?.phone_number || 
+                         payload.conversation?.meta?.sender?.identifier;
+      const whatsappName = payload.conversation?.meta?.sender?.name || null;
+      const conversationId = payload.conversation?.id;
+      const messageId = payload.id;
+
       // Check if this is a survey template being sent
       const isSurveyTemplate = content?.includes('Deepal Family') || 
                               content?.includes('satisfaction') ||
                               content?.includes('5 courtes questions') ||
-                              payload.additional_attributes?.template_params?.name === 'survey_vn';
+                              content?.includes('borne de recharge') ||
+                              content?.includes('borne DEEPAL') ||
+                              payload.additional_attributes?.template_params?.name === 'survey_vn' ||
+                              payload.additional_attributes?.template_params?.name === 'installation_survey';
       
       if (isSurveyTemplate) {
         // CRITICAL: For OUTGOING messages, the customer info is in conversation.meta.sender
         // NOT in payload.sender (which is the agent sending the message)
-        const phoneNumber = payload.conversation?.meta?.sender?.phone_number || 
-                           payload.conversation?.meta?.sender?.identifier;
-        const whatsappName = payload.conversation?.meta?.sender?.name || null;
-        const conversationId = payload.conversation?.id;
-        const messageId = payload.id;
-        
         if (phoneNumber) {
           console.log('📤 OUTGOING survey template detected!');
           console.log('   → Phone:', phoneNumber);

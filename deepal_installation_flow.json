@@ -1,0 +1,323 @@
+{
+  "version": "7.3",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "QUESTION_ONE": ["QUESTION_TWO"],
+    "QUESTION_TWO": ["QUESTION_THREE"],
+    "QUESTION_THREE": ["QUESTION_FOUR"],
+    "QUESTION_FOUR": ["QUESTION_FIVE"],
+    "QUESTION_FIVE": ["SUCCESS_SCREEN"]
+  },
+  "screens": [
+    {
+      "id": "QUESTION_ONE",
+      "title": "Question 1/5",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q1",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Merci d'avoir choisi DEEPAL"
+              },
+              {
+                "type": "TextBody",
+                "text": "Suite à l'installation de votre borne de recharge, nous vous serions reconnaissants de partager votre expérience. Ce questionnaire ne prendra que quelques secondes."
+              },
+              {
+                "type": "TextBody",
+                "text": "Sur une échelle de 0 à 10, quelle est la probabilité que vous recommandiez l'installation DEEPAL à votre entourage ?"
+              },
+              {
+                "type": "Dropdown",
+                "label": "Votre note (0-10)",
+                "name": "q1_nps",
+                "required": true,
+                "data-source": [
+                  {"id": "10", "title": "10 - Très probable"},
+                  {"id": "9", "title": "9"},
+                  {"id": "8", "title": "8"},
+                  {"id": "7", "title": "7"},
+                  {"id": "6", "title": "6"},
+                  {"id": "5", "title": "5"},
+                  {"id": "4", "title": "4"},
+                  {"id": "3", "title": "3"},
+                  {"id": "2", "title": "2"},
+                  {"id": "1", "title": "1"},
+                  {"id": "0", "title": "0 - Pas du tout probable"}
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {"type": "screen", "name": "QUESTION_TWO"},
+                  "payload": {
+                    "q1_nps": "${form.q1_nps}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_TWO",
+      "title": "Question 2/5",
+      "data": {
+        "q1_nps": {"type": "string", "__example__": "8"}
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q2",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Satisfaction Globale"
+              },
+              {
+                "type": "TextBody",
+                "text": "Sur une échelle de 1 à 10, comment évaluez-vous votre satisfaction globale concernant l'installation ?"
+              },
+              {
+                "type": "Dropdown",
+                "label": "Votre note (1-10)",
+                "name": "q2_satisfaction",
+                "required": true,
+                "data-source": [
+                  {"id": "10", "title": "10 - Excellent"},
+                  {"id": "9", "title": "9"},
+                  {"id": "8", "title": "8"},
+                  {"id": "7", "title": "7"},
+                  {"id": "6", "title": "6"},
+                  {"id": "5", "title": "5"},
+                  {"id": "4", "title": "4"},
+                  {"id": "3", "title": "3"},
+                  {"id": "2", "title": "2"},
+                  {"id": "1", "title": "1 - Très insatisfait"}
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {"type": "screen", "name": "QUESTION_THREE"},
+                  "payload": {
+                    "q1_nps": "${data.q1_nps}",
+                    "q2_satisfaction": "${form.q2_satisfaction}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_THREE",
+      "title": "Question 3/5",
+      "data": {
+        "q1_nps": {"type": "string", "__example__": "8"},
+        "q2_satisfaction": {"type": "string", "__example__": "9"}
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q3",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Respect des Délais"
+              },
+              {
+                "type": "TextBody",
+                "text": "L'installation a-t-elle été réalisée dans les délais annoncés ?"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Réponse",
+                "name": "q3_delais",
+                "required": true,
+                "data-source": [
+                  {"id": "oui", "title": "Oui"},
+                  {"id": "non", "title": "Non"}
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {"type": "screen", "name": "QUESTION_FOUR"},
+                  "payload": {
+                    "q1_nps": "${data.q1_nps}",
+                    "q2_satisfaction": "${data.q2_satisfaction}",
+                    "q3_delais": "${form.q3_delais}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FOUR",
+      "title": "Question 4/5",
+      "data": {
+        "q1_nps": {"type": "string", "__example__": "8"},
+        "q2_satisfaction": {"type": "string", "__example__": "9"},
+        "q3_delais": {"type": "string", "__example__": "oui"}
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q4",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Qualité d'Intervention"
+              },
+              {
+                "type": "TextBody",
+                "text": "Sur une échelle de 1 à 10, comment évaluez-vous le professionnalisme et la qualité d'intervention de l'équipe d'installation ?"
+              },
+              {
+                "type": "Dropdown",
+                "label": "Votre note (1-10)",
+                "name": "q4_professionnalisme",
+                "required": true,
+                "data-source": [
+                  {"id": "10", "title": "10 - Excellent"},
+                  {"id": "9", "title": "9"},
+                  {"id": "8", "title": "8"},
+                  {"id": "7", "title": "7"},
+                  {"id": "6", "title": "6"},
+                  {"id": "5", "title": "5"},
+                  {"id": "4", "title": "4"},
+                  {"id": "3", "title": "3"},
+                  {"id": "2", "title": "2"},
+                  {"id": "1", "title": "1 - Très insatisfait"}
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Continuer",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {"type": "screen", "name": "QUESTION_FIVE"},
+                  "payload": {
+                    "q1_nps": "${data.q1_nps}",
+                    "q2_satisfaction": "${data.q2_satisfaction}",
+                    "q3_delais": "${data.q3_delais}",
+                    "q4_professionnalisme": "${form.q4_professionnalisme}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "QUESTION_FIVE",
+      "title": "Question 5/5",
+      "data": {
+        "q1_nps": {"type": "string", "__example__": "8"},
+        "q2_satisfaction": {"type": "string", "__example__": "9"},
+        "q3_delais": {"type": "string", "__example__": "oui"},
+        "q4_professionnalisme": {"type": "string", "__example__": "9"}
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form_q5",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Remarques et Suggestions"
+              },
+              {
+                "type": "TextBody",
+                "text": "Avez-vous des remarques ou suggestions pour améliorer votre expérience ?"
+              },
+              {
+                "type": "TextArea",
+                "label": "Vos remarques",
+                "name": "q5_remarques",
+                "required": false,
+                "helper-text": "Partagez vos suggestions"
+              },
+              {
+                "type": "Footer",
+                "label": "Valider",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "q1_nps": "${data.q1_nps}",
+                    "q2_satisfaction": "${data.q2_satisfaction}",
+                    "q3_delais": "${data.q3_delais}",
+                    "q4_professionnalisme": "${data.q4_professionnalisme}",
+                    "q5_remarques": "${form.q5_remarques}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS_SCREEN",
+      "title": "Confirmation",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "confirmation_message": {"type": "string", "__example__": "Merci !"}
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "success_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "✅ Questionnaire Complété"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.confirmation_message}"
+              },
+              {
+                "type": "Footer",
+                "label": "Terminer",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

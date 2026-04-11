@@ -187,16 +187,18 @@ module.exports = async (req, res) => {
         }
         
         // METHOD 3: Database lookup (phone captured when user opened Flow)
-        // SKIP if flow_token is generic ("unused", "test", etc.) to avoid wrong matches
-        if (!phoneNumber && flow_token && !['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
-          console.log('🔍 FALLBACK: Checking database for phone number...');
-          phoneNumber = await getPhoneByFlowToken(flow_token);
-          if (phoneNumber) {
-            phoneSource = 'database_lookup';
-            console.log('📞 Phone from DATABASE:', phoneNumber);
+        // Now safe to use even for generic tokens since we have a separate mapping table
+        if (!phoneNumber && flow_token) {
+          console.log('🔍 FALLBACK: Checking database flow_token_mappings...');
+          const dbResult = await getPhoneByFlowToken(flow_token);
+          if (dbResult && dbResult.phone) {
+            phoneNumber = dbResult.phone;
+            contactName = dbResult.name || contactName;
+            phoneSource = 'database_mapping';
+            console.log('📞 Phone from DATABASE MAPPING:', phoneNumber, '| Name:', contactName);
+          } else {
+            console.log('⚠️ No mapping found in database for flow_token:', flow_token.substring(0, 30));
           }
-        } else if (flow_token && ['unused', 'test', 'demo'].includes(flow_token.toLowerCase())) {
-          console.log('⚠️ SKIPPING database lookup - generic flow_token detected:', flow_token);
         }
         
         // METHOD 3: Extract from flow_token pattern (LEGACY - depends on Zoho format)

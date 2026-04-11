@@ -9,6 +9,9 @@
     { "source": "/api/webhook", "destination": "/api/webhook.js" },
     { "source": "/api/chatwoot-webhook", "destination": "/api/chatwoot-webhook.js" },
     { "source": "/api/chatwoot-test", "destination": "/api/chatwoot-test.js" },
-    { "source": "/api/integrity", "destination": "/api/integrity.js" }
+    { "source": "/api/integrity", "destination": "/api/integrity.js" },
+    { "source": "/api/installation-flow", "destination": "/api/installation-flow.js" },
+    { "source": "/api/installation-responses", "destination": "/api/installation-responses.js" },
+    { "source": "/api/installation-export", "destination": "/api/installation-export.js" }
   ]
 }

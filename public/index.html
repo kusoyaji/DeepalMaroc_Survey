@@ -12,6 +12,37 @@
             min-height: 100vh;
             padding: 20px;
         }
+        .tab-nav {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 4px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .tab-nav a {
+            flex: 1;
+            text-align: center;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .tab-nav a:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        .tab-nav a.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -126,6 +157,11 @@
 </head>
 <body>
     <div class="container">
+        <div class="tab-nav">
+            <a href="/" class="active">Enquête Satisfaction</a>
+            <a href="/installation.html">Enquête Installation</a>
+        </div>
+
         <div class="header">
             <h1>Deepal Maroc - Dashboard Satisfaction</h1>
             <p>Analyse en temps reel des retours clients</p>
