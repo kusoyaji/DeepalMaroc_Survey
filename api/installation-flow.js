@@ -102,7 +102,8 @@ module.exports = async (req, res) => {
         console.log('========================================');
         console.log('✅ INSTALLATION SURVEY SUBMITTED');
         console.log('🎫 Flow Token:', flow_token);
-        console.log('📊 Data:', JSON.stringify(data, null, 2));
+        console.log('� Data keys:', Object.keys(data || {}).join(', '));
+        console.log('📊 Data values:', JSON.stringify(data));
         console.log('========================================');
         
         // ===== PHONE NUMBER CAPTURE (multiple fallback methods) =====

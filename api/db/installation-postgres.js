@@ -38,16 +38,27 @@ async function initializeInstallationDB() {
   console.log('✅ Installation survey database initialized');
 }
 
-// Map star ratings from WhatsApp Flow to 0-10 numeric scale
-function starToNumeric(starRating) {
-  const map = {
-    '5_etoiles': 10,
-    '4_etoiles': 8,
-    '3_etoiles': 6,
-    '2_etoiles': 4,
-    '1_etoile': 2
+// Convert any value to 0-10 numeric (handles star ratings AND direct numeric values)
+function toNumeric(value) {
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  // Star rating format
+  const starMap = {
+    '5_etoiles': 10, '4_etoiles': 8, '3_etoiles': 6, '2_etoiles': 4, '1_etoile': 2
   };
-  return map[starRating] || null;
+  if (starMap[str] !== undefined) return starMap[str];
+  // Direct numeric value
+  const num = parseFloat(str);
+  if (!isNaN(num) && num >= 0 && num <= 10) return Math.round(num);
+  return null;
+}
+
+// Get value from data trying multiple possible field names
+function getVal(data, ...keys) {
+  for (const k of keys) {
+    if (data[k] !== undefined && data[k] !== null && data[k] !== '') return data[k];
+  }
+  return null;
 }
 
 async function saveInstallationResponse(flowToken, data, whatsappName = null) {
@@ -59,27 +70,28 @@ async function saveInstallationResponse(flowToken, data, whatsappName = null) {
     console.warn('⚠️ Installation DB: Saving response WITHOUT phone number! Token:', flowToken);
   }
   
-  // Map star ratings to numeric scores
-  const q1_nps = starToNumeric(data.q1_rating);
-  const q2_sat = starToNumeric(data.q2_rating);
-  const q4_pro = starToNumeric(data.q4_rating);
-  const q5_nps_val = starToNumeric(data.q5_rating);
+  // Log raw data for debugging
+  console.log('🔑 Installation data keys:', Object.keys(data).join(', '));
+  console.log('📊 Installation raw data:', JSON.stringify(data));
   
-  // Q3: direct oui/non
-  const q3_delais = data.q3_followup || null;
+  // Flexible field extraction - try multiple possible field names
+  // The installation flow may use q1_rating (like main flow) OR q1_nps etc.
+  const q1_nps = toNumeric(getVal(data, 'q1_rating', 'q1_nps', 'nps', 'q1', 'recommandation'));
+  const q2_sat = toNumeric(getVal(data, 'q2_rating', 'q2_satisfaction', 'satisfaction', 'q2'));
+  const q4_pro = toNumeric(getVal(data, 'q4_rating', 'q4_professionnalisme', 'professionnalisme', 'q4'));
   
-  // Combine all remarks/comments
-  const remarks = [
-    data.q1_comment,
-    data.q2_comment,
-    data.q4_comment,
-    data.q5_comment,
-    data.final_comments
-  ].filter(c => c && c.trim()).join('; ') || null;
+  // Q3: oui/non - try multiple field names
+  const q3_delais = getVal(data, 'q3_followup', 'q3_delais', 'delais', 'q3');
   
-  // NPS score: from Q5 (recommend Deepal = classic NPS question)
-  // If Q5 not answered, fallback to Q1
-  const nps_score = q5_nps_val || q1_nps;
+  // Remarks: try final_comments first (like main flow), then specific names
+  const remarks = getVal(data, 'final_comments', 'q5_comment', 'q5_remarques', 'remarques', 'commentaires')
+    || [data.q1_comment, data.q2_comment, data.q4_comment, data.q5_comment].filter(c => c && c.trim()).join('; ')
+    || null;
+  
+  // NPS score: Q1 is the NPS question in installation survey
+  const nps_score = q1_nps;
+  
+  console.log('📊 Mapped: q1_nps=' + q1_nps + ', q2_sat=' + q2_sat + ', q3=' + q3_delais + ', q4=' + q4_pro + ', remarks=' + remarks);
   
   // Satisfaction average (0-1 scale): average of all numeric ratings / 10
   const numericScores = [q1_nps, q2_sat, q4_pro].filter(s => s !== null);
@@ -99,10 +111,7 @@ async function saveInstallationResponse(flowToken, data, whatsappName = null) {
     (q2_sat !== null && q2_sat <= 4) ||
     (q4_pro !== null && q4_pro <= 4) ||
     q3_delais === 'non' ||
-    data.q1_comment ||
-    data.q2_comment ||
-    data.q4_comment ||
-    data.q5_comment
+    remarks
   );
   
   // Try to UPDATE existing placeholder row first (created by Chatwoot webhook or flow queue)
