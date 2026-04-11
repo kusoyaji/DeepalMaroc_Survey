@@ -95,6 +95,14 @@ function formatSurveyForWhatsApp(data) {
  * Used to auto-trigger the survey when a keyword is detected
  */
 async function sendFlowMessage(recipientPhone, flowId, flowToken) {
+  return sendWhatsAppFlow(recipientPhone, flowId, flowToken);
+}
+
+/**
+ * Send a WhatsApp Flow with full customization (header, body, footer, CTA)
+ * Called by chatwoot-webhook.js when "deepal new survey" trigger is matched
+ */
+async function sendWhatsAppFlow(recipientPhone, flowId, flowToken, headerText, bodyText, footerText, ctaText) {
   const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
   
   const body = {
@@ -105,21 +113,21 @@ async function sendFlowMessage(recipientPhone, flowId, flowToken) {
       type: 'flow',
       header: {
         type: 'text',
-        text: 'Enquête Satisfaction Deepal'
+        text: headerText || 'Enquête Satisfaction Deepal'
       },
       body: {
-        text: 'Bonjour ! Nous aimerions connaître votre avis sur votre expérience avec Deepal Maroc.'
+        text: bodyText || 'Bonjour ! Nous aimerions connaître votre avis sur votre expérience avec Deepal Maroc.'
       },
       footer: {
-        text: '2 minutes seulement'
+        text: footerText || 'DEEPAL Maroc'
       },
       action: {
         name: 'flow',
         parameters: {
           flow_message_version: '3',
-          flow_token: flowToken,
+          flow_token: flowToken || 'unused',
           flow_id: flowId,
-          flow_cta: "Commencer l'enquête",
+          flow_cta: ctaText || "Commencer l'enquête",
           flow_action: 'navigate',
           flow_action_payload: {
             screen: 'QUESTION_ONE'
@@ -157,5 +165,6 @@ async function sendFlowMessage(recipientPhone, flowId, flowToken) {
 module.exports = {
   sendWhatsAppMessage,
   formatSurveyForWhatsApp,
-  sendFlowMessage
+  sendFlowMessage,
+  sendWhatsAppFlow
 };
